@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
+import 'package:medi_assist/core/widgets/alarm_sound_picker.dart';
 import 'package:medi_assist/core/constants/app_colors.dart';
 import 'package:medi_assist/core/utils/time_utils.dart';
 import 'package:medi_assist/core/widgets/notif_type_selector.dart';
@@ -28,7 +29,7 @@ class AddEditActivityView extends StatelessWidget {
               _buildHeaderCard(isEditing),
               const SizedBox(height: 24),
 
-              _buildSectionLabel('Activity Name', Icons.sports_rounded),
+              _buildSectionLabel('activity_name'.tr, Icons.sports_rounded),
               const SizedBox(height: 10),
               _buildNameField(controller, isDark),
               const SizedBox(height: 12),
@@ -38,9 +39,9 @@ class AddEditActivityView extends StatelessWidget {
               const SizedBox(height: 24),
 
               _buildSectionLabel(
-                  'Reminder Time', Icons.access_time_rounded),
+                  'reminder_time'.tr, Icons.access_time_rounded),
               const SizedBox(height: 4),
-              Text('Set your daily activity reminder time',
+              Text('activity_set_time'.tr,
                   style: TextStyle(
                       fontSize: 12, color: Colors.grey.shade500)),
               const SizedBox(height: 12),
@@ -48,9 +49,9 @@ class AddEditActivityView extends StatelessWidget {
               const SizedBox(height: 24),
 
               _buildSectionLabel(
-                  'Reminder Type', Icons.notifications_rounded),
+                  'reminder_type'.tr, Icons.notifications_rounded),
               const SizedBox(height: 4),
-              Text('How would you like to be reminded?',
+              Text('notif_type_question'.tr,
                   style: TextStyle(
                       fontSize: 12, color: Colors.grey.shade500)),
               const SizedBox(height: 12),
@@ -60,6 +61,21 @@ class AddEditActivityView extends StatelessWidget {
                 selectedNotifType: controller.selectedNotifType,
                 onChanged: controller.setNotifType,
                 isDark: isDark,
+              ),
+              const SizedBox(height: 24),
+
+              _buildSectionLabel('alarm_sound'.tr, Icons.music_note_rounded),
+              const SizedBox(height: 4),
+              Text('alarm_sound_form_hint'.tr,
+                  style: TextStyle(
+                      fontSize: 12, color: Colors.grey.shade500)),
+              const SizedBox(height: 12),
+              AlarmSoundRow(
+                selected: controller.selectedAlarmSound,
+                onChanged: (sound) =>
+                    controller.selectedAlarmSound.value = sound,
+                isDark: isDark,
+                accent: AppColors.activityColor,
               ),
               const SizedBox(height: 24),
 
@@ -94,7 +110,7 @@ class AddEditActivityView extends StatelessWidget {
         ),
       ),
       title: Text(
-        isEditing ? 'Edit Activity' : 'Add Activity',
+        isEditing ? 'activity_edit'.tr : 'activity_add'.tr,
         style: const TextStyle(
             fontSize: 18, fontWeight: FontWeight.w700, letterSpacing: -0.3),
       ),
@@ -126,7 +142,9 @@ class AddEditActivityView extends StatelessWidget {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  isEditing ? 'Update Activity' : 'New Activity Reminder',
+                  isEditing
+                      ? 'activity_update_button'.tr
+                      : 'activity_new_reminder'.tr,
                   style: const TextStyle(
                       color: Colors.white,
                       fontSize: 16,
@@ -135,8 +153,8 @@ class AddEditActivityView extends StatelessWidget {
                 const SizedBox(height: 3),
                 Text(
                   isEditing
-                      ? 'Modify activity details and save'
-                      : 'Stay active with daily reminders',
+                      ? 'activity_modify_details'.tr
+                      : 'activity_subtitle'.tr,
                   style: TextStyle(
                       color: Colors.white.withOpacity(0.8), fontSize: 12),
                 ),
@@ -165,7 +183,7 @@ class AddEditActivityView extends StatelessWidget {
       textCapitalization: TextCapitalization.words,
       style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w500),
       decoration: InputDecoration(
-        hintText: 'e.g. Morning Run, Yoga, Gym...',
+        hintText: 'activity_name_hint'.tr,
         prefixIcon: const Icon(Icons.sports_outlined,
             color: AppColors.activityColor, size: 20),
         filled: true,
@@ -186,15 +204,17 @@ class AddEditActivityView extends StatelessWidget {
 
   // ✅ Uses nameInputRx (RxString) NOT nameController.text (non-Rx)
   Widget _buildActivitySuggestions(ActivityController controller) {
-    const suggestions = [
-      ('🏃', 'Morning Run'),
-      ('🚶', 'Evening Walk'),
-      ('🧘', 'Yoga'),
-      ('💪', 'Gym'),
-      ('🚴', 'Cycling'),
-      ('🏊', 'Swimming'),
-      ('🤸', 'Stretching'),
-      ('🥊', 'Boxing'),
+    // Not const any more: the labels are resolved against the current
+    // language every build.
+    final suggestions = [
+      ('🏃', 'activity_preset_morning_run'.tr),
+      ('🚶', 'activity_preset_evening_walk'.tr),
+      ('🧘', 'activity_preset_yoga'.tr),
+      ('💪', 'activity_preset_gym'.tr),
+      ('🚴', 'activity_preset_cycling'.tr),
+      ('🏊', 'activity_preset_swimming'.tr),
+      ('🤸', 'activity_preset_stretching'.tr),
+      ('🥊', 'activity_preset_boxing'.tr),
     ];
 
     return Obx(() {
@@ -354,13 +374,13 @@ class AddEditActivityView extends StatelessWidget {
   }
 
   String _getTimeSuggestion(int hour) {
-    if (hour >= 5 && hour < 9) return '🌅 Great for morning workout';
-    if (hour >= 9 && hour < 12) return '☀️ Mid-morning energy boost';
-    if (hour >= 12 && hour < 14) return '🥗 Lunchtime walk';
-    if (hour >= 14 && hour < 17) return '💡 Afternoon activity';
-    if (hour >= 17 && hour < 20) return '🌆 Evening workout time';
-    if (hour >= 20 && hour < 22) return '🌙 Night stretch or walk';
-    return '⏰ Custom activity time';
+    if (hour >= 5 && hour < 9) return 'activity_suggest_morning'.tr;
+    if (hour >= 9 && hour < 12) return 'activity_suggest_mid_morning'.tr;
+    if (hour >= 12 && hour < 14) return 'activity_suggest_lunch_walk'.tr;
+    if (hour >= 14 && hour < 17) return 'activity_suggest_afternoon'.tr;
+    if (hour >= 17 && hour < 20) return 'activity_suggest_evening'.tr;
+    if (hour >= 20 && hour < 22) return 'activity_suggest_night'.tr;
+    return 'activity_suggest_default'.tr;
   }
 
   Widget _buildActiveToggle(ActivityController controller, bool isDark) {
@@ -399,13 +419,13 @@ class AddEditActivityView extends StatelessWidget {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    const Text('Enable Reminders',
-                        style: TextStyle(
+                    Text('enable_reminders'.tr,
+                        style: const TextStyle(
                             fontSize: 14, fontWeight: FontWeight.w700)),
                     Text(
                       controller.isActive.value
-                          ? 'Activity reminders are active'
-                          : 'Activity reminders are paused',
+                          ? 'activity_reminders_active'.tr
+                          : 'activity_reminders_paused'.tr,
                       style: TextStyle(
                           fontSize: 12, color: Colors.grey.shade500),
                     ),
@@ -459,7 +479,7 @@ class AddEditActivityView extends StatelessWidget {
                           size: 20),
                       const SizedBox(width: 10),
                       Text(
-                        isEditing ? 'Save Changes' : 'Add Activity',
+                        isEditing ? 'save_changes'.tr : 'activity_add'.tr,
                         style: const TextStyle(
                             fontSize: 16,
                             fontWeight: FontWeight.w700,

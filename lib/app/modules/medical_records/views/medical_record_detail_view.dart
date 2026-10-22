@@ -1,8 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_slidable/flutter_slidable.dart';
 import 'package:get/get.dart';
+import 'package:medi_assist/core/localization/localized_digits.dart';
+import 'package:medi_assist/core/localization/medical_labels.dart';
 import 'package:medi_assist/core/constants/app_colors.dart';
 import 'package:medi_assist/core/constants/app_constants.dart';
+import 'package:medi_assist/core/utils/time_utils.dart';
 import 'package:medi_assist/models/medical_record_model.dart';
 import '../../../routes/app_pages.dart';
 import '../controllers/medical_records_controller.dart';
@@ -18,10 +21,10 @@ class MedicalRecordDetailView extends StatelessWidget {
     final type = args['type'] as String? ?? controller.currentType.value;
     final isDark = Theme.of(context).brightness == Brightness.dark;
 
-    final label = AppConstants.medicalRecordLabels[type] ?? type;
+    final label = MedicalLabels.type(type);
     final icon =
         AppConstants.medicalRecordIcons[type] ?? Icons.monitor_heart_rounded;
-    final unit = AppConstants.medicalRecordUnits[type] ?? '';
+    final unit = MedicalLabels.unit(type);
 
     return Scaffold(
       backgroundColor: Theme.of(context).scaffoldBackgroundColor,
@@ -149,31 +152,31 @@ class MedicalRecordDetailView extends StatelessWidget {
         child: Row(
           children: [
             _StatItem(
-              label: 'Entries',
-              value: records.length.toString(),
+              label: 'entries'.tr,
+              value: records.length.localizedDigits,
               color: AppColors.medicalColor,
             ),
             _StatDivider(),
             _StatItem(
-              label: 'Latest',
-              value: '${records.first.result} $unit',
+              label: 'latest'.tr,
+              value: '${records.first.result.localizedDigits} $unit',
               color: AppColors.primary,
             ),
             if (avg != null) ...[
               _StatDivider(),
               _StatItem(
-                label: 'Average',
+                label: 'average'.tr,
                 value:
-                    '${avg.toStringAsFixed(1)} $unit',
+                    '${avg.toStringAsFixed(1).localizedDigits} $unit',
                 color: AppColors.secondary,
               ),
             ],
             if (max != null && min != null) ...[
               _StatDivider(),
               _StatItem(
-                label: 'Range',
-                value:
-                    '${min!.toStringAsFixed(0)}–${max!.toStringAsFixed(0)}',
+                label: 'range'.tr,
+                value: '${min.toStringAsFixed(0).localizedDigits}–'
+                    '${max.toStringAsFixed(0).localizedDigits}',
                 color: AppColors.accentDark,
               ),
             ],
@@ -237,7 +240,7 @@ class MedicalRecordDetailView extends StatelessWidget {
             ),
             const SizedBox(height: 24),
             Text(
-              'No $label records yet',
+              'medical_empty_for'.trParams({'label': label}),
               style: const TextStyle(
                 fontSize: 20,
                 fontWeight: FontWeight.w700,
@@ -247,7 +250,7 @@ class MedicalRecordDetailView extends StatelessWidget {
             ),
             const SizedBox(height: 10),
             Text(
-              'Start tracking your $label to monitor your health trends over time',
+              'medical_start_tracking_for'.trParams({'label': label}),
               style: TextStyle(
                 fontSize: 14,
                 color: Colors.grey.shade500,
@@ -265,7 +268,9 @@ class MedicalRecordDetailView extends StatelessWidget {
                 );
               },
               icon: const Icon(Icons.add_rounded),
-              label: Text('Add $label Entry'),
+              label: Text(
+                'medical_add_entry_for'.trParams({'label': label}),
+              ),
               style: ElevatedButton.styleFrom(
                 backgroundColor: AppColors.medicalColor,
                 padding: const EdgeInsets.symmetric(
@@ -297,9 +302,9 @@ class MedicalRecordDetailView extends StatelessWidget {
       foregroundColor: Colors.white,
       elevation: 4,
       icon: const Icon(Icons.add_rounded),
-      label: const Text(
-        'Add Entry',
-        style: TextStyle(fontWeight: FontWeight.w600),
+      label: Text(
+        'medical_add_entry'.tr,
+        style: const TextStyle(fontWeight: FontWeight.w600),
       ),
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
     );
@@ -394,7 +399,7 @@ class _RecordListItemState extends State<_RecordListItem>
                   backgroundColor: AppColors.primary,
                   foregroundColor: Colors.white,
                   icon: Icons.edit_rounded,
-                  label: 'Edit',
+                  label: 'edit'.tr,
                   borderRadius: const BorderRadius.only(
                     topLeft: Radius.circular(14),
                     bottomLeft: Radius.circular(14),
@@ -406,7 +411,7 @@ class _RecordListItemState extends State<_RecordListItem>
                   backgroundColor: AppColors.danger,
                   foregroundColor: Colors.white,
                   icon: Icons.delete_rounded,
-                  label: 'Delete',
+                  label: 'delete'.tr,
                   borderRadius: const BorderRadius.only(
                     topRight: Radius.circular(14),
                     bottomRight: Radius.circular(14),
@@ -456,7 +461,7 @@ class _RecordListItemState extends State<_RecordListItem>
                         children: [
                           // DateTime
                           Text(
-                            record.formattedDateTime,
+                            TimeUtils.formatFull(record.dateTime),
                             style: TextStyle(
                               fontSize: 12,
                               color: Colors.grey.shade500,
@@ -479,7 +484,7 @@ class _RecordListItemState extends State<_RecordListItem>
                                 borderRadius: BorderRadius.circular(6),
                               ),
                               child: Text(
-                                record.category!,
+                                MedicalLabels.category(record.category!),
                                 style: const TextStyle(
                                   fontSize: 11,
                                   fontWeight: FontWeight.w600,

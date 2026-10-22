@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
+import 'package:medi_assist/core/localization/medical_labels.dart';
 import 'package:medi_assist/core/constants/app_constants.dart';
 import 'package:medi_assist/core/services/storage_service.dart';
 import 'package:medi_assist/core/utils/app_utils.dart';
@@ -67,7 +68,7 @@ class MedicalRecordsController extends GetxController {
   }
 
   String getLabelForType(String type) {
-    return AppConstants.medicalRecordLabels[type] ?? type;
+    return MedicalLabels.type(type);
   }
 
   // ─── Lifecycle ───────────────────────────────────────────────────────────────
@@ -92,7 +93,7 @@ class MedicalRecordsController extends GetxController {
       allRecords.assignAll(data);
       _applyFilters();
     } catch (e) {
-      AppUtils.showError('Failed to load medical records');
+      AppUtils.showError('failed_load_records'.tr);
     } finally {
       isLoading.value = false;
     }
@@ -115,7 +116,7 @@ class MedicalRecordsController extends GetxController {
   }
 
   void _applyFilters() {
-    var records = allRecords;
+    List<MedicalRecord> records = allRecords;
     
     // Filter by type if selected
     if (currentType.value.isNotEmpty) {
@@ -158,14 +159,19 @@ class MedicalRecordsController extends GetxController {
       allRecords.add(record);
       _filterByCurrentType();
 
-      AppUtils.showSuccess(
-        'Record saved successfully',
-        title: '${getLabelForType(type)} Added',
-      );
       _resetForm();
       Get.back();
+      AppUtils.showResultDialog(
+        success: true,
+        title: 'medical_added_for'.trParams({'label': getLabelForType(type)}),
+        message: 'medical_record_saved'.tr,
+      );
     } catch (e) {
-      AppUtils.showError('Failed to save record. Please try again.');
+      AppUtils.showResultDialog(
+        success: false,
+        title: 'save_failed'.tr,
+        message: 'failed_save_record'.tr,
+      );
     } finally {
       isLoading.value = false;
     }
@@ -192,11 +198,19 @@ class MedicalRecordsController extends GetxController {
       if (idx != -1) allRecords[idx] = updated;
       _filterByCurrentType();
 
-      AppUtils.showSuccess('Record updated', title: 'Updated');
       _resetForm();
       Get.back();
+      AppUtils.showResultDialog(
+        success: true,
+        title: 'updated'.tr,
+        message: 'medical_record_updated'.tr,
+      );
     } catch (e) {
-      AppUtils.showError('Failed to update record. Please try again.');
+      AppUtils.showResultDialog(
+        success: false,
+        title: 'save_failed'.tr,
+        message: 'failed_update_record'.tr,
+      );
     } finally {
       isLoading.value = false;
     }
@@ -205,9 +219,9 @@ class MedicalRecordsController extends GetxController {
   // ─── Delete Record ───────────────────────────────────────────────────────────
   Future<void> deleteRecord(MedicalRecord record) async {
     final confirmed = await AppUtils.showConfirmDialog(
-      title: 'Delete Record',
-      message: 'Are you sure you want to delete this record?',
-      confirmText: 'Delete',
+      title: 'medical_delete_title'.tr,
+      message: 'medical_delete_message'.tr,
+      confirmText: 'delete'.tr,
       icon: Icons.delete_outline_rounded,
     );
 
@@ -218,9 +232,9 @@ class MedicalRecordsController extends GetxController {
       await StorageService.to.deleteMedicalRecord(record.id);
       allRecords.removeWhere((r) => r.id == record.id);
       _filterByCurrentType();
-      AppUtils.showSuccess('Record deleted', title: 'Deleted');
+      AppUtils.showSuccess('medical_record_deleted'.tr, title: 'deleted'.tr);
     } catch (e) {
-      AppUtils.showError('Failed to delete record.');
+      AppUtils.showError('failed_delete_record'.tr);
     } finally {
       isLoading.value = false;
     }
@@ -253,7 +267,11 @@ class MedicalRecordsController extends GetxController {
 
   bool _validateForm(String type) {
     if (resultController.text.trim().isEmpty) {
-      AppUtils.showError('Please enter the result value');
+      AppUtils.showResultDialog(
+        success: false,
+        title: 'save_failed'.tr,
+        message: 'medical_result_required'.tr,
+      );
       return false;
     }
     return true;

@@ -1,7 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
+import 'package:medi_assist/core/localization/localized_digits.dart';
+import 'package:medi_assist/core/localization/medical_labels.dart';
 import 'package:medi_assist/core/constants/app_colors.dart';
 import 'package:medi_assist/core/constants/app_constants.dart';
+import 'package:medi_assist/core/utils/time_utils.dart';
 import '../../../routes/app_pages.dart';
 import '../controllers/medical_records_controller.dart';
 
@@ -46,9 +49,9 @@ class MedicalRecordsView extends StatelessWidget {
                       color: AppColors.medicalColor,
                     ),
                     const SizedBox(width: 8),
-                    const Text(
-                      'Health Metrics',
-                      style: TextStyle(
+                    Text(
+                      'medical_health_metrics'.tr,
+                      style: const TextStyle(
                         fontSize: 16,
                         fontWeight: FontWeight.w700,
                         letterSpacing: -0.2,
@@ -56,7 +59,7 @@ class MedicalRecordsView extends StatelessWidget {
                     ),
                     const Spacer(),
                     Obx(() => Text(
-                          '${controller.filteredRecords.length} entries',
+                          'medical_entry_count'.trParams({'count': controller.filteredRecords.length.localizedDigits}),
                           style: TextStyle(
                             fontSize: 12,
                             color: Colors.grey.shade500,
@@ -131,19 +134,19 @@ class MedicalRecordsView extends StatelessWidget {
           ),
         ),
       ),
-      title: const Column(
+      title: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text(
-            'Medical Records',
-            style: TextStyle(
+            'medical_title'.tr,
+            style: const TextStyle(
               fontSize: 18,
               fontWeight: FontWeight.w700,
               letterSpacing: -0.3,
             ),
           ),
           Text(
-            'Track your health metrics',
+            'medical_subtitle'.tr,
             style: TextStyle(
               fontSize: 12,
               color: AppColors.medicalColor,
@@ -206,7 +209,7 @@ class MedicalRecordsView extends StatelessWidget {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(
-                        total.toString(),
+                        total.localizedDigits,
                         style: const TextStyle(
                           color: Colors.white,
                           fontSize: 36,
@@ -215,7 +218,7 @@ class MedicalRecordsView extends StatelessWidget {
                         ),
                       ),
                       Text(
-                        'Total Entries',
+                        'total_entries'.tr,
                         style: TextStyle(
                           color: Colors.white.withOpacity(0.8),
                           fontSize: 13,
@@ -247,7 +250,7 @@ class MedicalRecordsView extends StatelessWidget {
                           ),
                           const SizedBox(width: 6),
                           Text(
-                            '${countByType.values.where((v) => v > 0).length} metrics tracked',
+                            'medical_metrics_tracked'.trParams({'count': countByType.values.where((v) => v > 0).length.localizedDigits}),
                             style: const TextStyle(
                               color: Colors.white,
                               fontSize: 12,
@@ -260,7 +263,7 @@ class MedicalRecordsView extends StatelessWidget {
                     if (mostTracked.isNotEmpty) ...[
                       const SizedBox(height: 8),
                       Text(
-                        'Most tracked: ${AppConstants.medicalRecordLabels[mostTracked.first.key] ?? ''}',
+                        'medical_most_tracked'.trParams({'name': MedicalLabels.type(mostTracked.first.key)}),
                         style: TextStyle(
                           color: Colors.white.withOpacity(0.75),
                           fontSize: 11,
@@ -288,7 +291,7 @@ class MedicalRecordsView extends StatelessWidget {
                     ),
                     const SizedBox(width: 8),
                     Text(
-                      'Start logging your health metrics below',
+                      'medical_start_logging'.tr,
                       style: TextStyle(
                         color: Colors.white.withOpacity(0.9),
                         fontSize: 12,
@@ -308,8 +311,7 @@ class MedicalRecordsView extends StatelessWidget {
   Widget _buildMonthYearFilter(
       MedicalRecordsController controller, bool isDark) {
     final months = [
-      'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
-      'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'
+      for (var m = 1; m <= 12; m++) 'month_short_$m'.tr,
     ];
     final currentYear = DateTime.now().year;
     final years = List.generate(5, (i) => currentYear - i);
@@ -324,9 +326,9 @@ class MedicalRecordsView extends StatelessWidget {
             color: AppColors.medicalColor,
           ),
           const SizedBox(width: 8),
-          const Text(
-            'Filter by Month:',
-            style: TextStyle(
+          Text(
+            'medical_filter_by_month'.tr,
+            style: const TextStyle(
               fontSize: 14,
               fontWeight: FontWeight.w600,
             ),
@@ -416,9 +418,9 @@ class MedicalRecordsView extends StatelessWidget {
                   color: AppColors.medicalColor,
                 ),
                 const SizedBox(width: 8),
-                const Text(
-                  'Recent Entries',
-                  style: TextStyle(
+                Text(
+                  'medical_recent_entries'.tr,
+                  style: const TextStyle(
                     fontSize: 16,
                     fontWeight: FontWeight.w700,
                     letterSpacing: -0.2,
@@ -429,12 +431,12 @@ class MedicalRecordsView extends StatelessWidget {
             const SizedBox(height: 12),
             ...top5.map((record) {
               final label =
-                  AppConstants.medicalRecordLabels[record.type] ?? record.type;
+                  MedicalLabels.type(record.type);
               final icon =
                   AppConstants.medicalRecordIcons[record.type] ??
                       Icons.monitor_heart_rounded;
               final unit =
-                  AppConstants.medicalRecordUnits[record.type] ?? '';
+                  MedicalLabels.unit(record.type);
 
               return Container(
                 margin: const EdgeInsets.only(bottom: 8),
@@ -476,7 +478,7 @@ class MedicalRecordsView extends StatelessWidget {
                             ),
                           ),
                           Text(
-                            record.formattedDateTime,
+                            TimeUtils.formatFull(record.dateTime),
                             style: TextStyle(
                               fontSize: 11,
                               color: Colors.grey.shade500,
@@ -489,7 +491,7 @@ class MedicalRecordsView extends StatelessWidget {
                       crossAxisAlignment: CrossAxisAlignment.end,
                       children: [
                         Text(
-                          '${record.result} $unit',
+                          '${record.result.localizedDigits} $unit',
                           style: TextStyle(
                             fontSize: 14,
                             fontWeight: FontWeight.w700,
@@ -498,7 +500,7 @@ class MedicalRecordsView extends StatelessWidget {
                         ),
                         if (record.category != null)
                           Text(
-                            record.category!,
+                            MedicalLabels.category(record.category!),
                             style: TextStyle(
                               fontSize: 10,
                               color: Colors.grey.shade500,
@@ -575,10 +577,10 @@ class _RecordTypeCardState extends State<_RecordTypeCard>
   @override
   Widget build(BuildContext context) {
     final type = widget.type;
-    final label = AppConstants.medicalRecordLabels[type] ?? type;
+    final label = MedicalLabels.type(type);
     final icon = AppConstants.medicalRecordIcons[type] ??
         Icons.monitor_heart_rounded;
-    final unit = AppConstants.medicalRecordUnits[type] ?? '';
+    final unit = MedicalLabels.unit(type);
 
     return FadeTransition(
       opacity: _fadeAnim,
@@ -700,7 +702,7 @@ class _RecordTypeCardState extends State<_RecordTypeCard>
                           ? Row(
                               children: [
                                 Text(
-                                  '${latest.result} $unit',
+                                  '${latest.result.localizedDigits} $unit',
                                   style: TextStyle(
                                     fontSize: 13,
                                     fontWeight: FontWeight.w600,
@@ -710,7 +712,7 @@ class _RecordTypeCardState extends State<_RecordTypeCard>
                               ],
                             )
                           : Text(
-                              'No entries yet',
+                              'medical_no_entries'.tr,
                               style: TextStyle(
                                 fontSize: 12,
                                 color: Colors.grey.shade400,
@@ -723,7 +725,7 @@ class _RecordTypeCardState extends State<_RecordTypeCard>
                       Text(
                         latest != null
                             ? latest.formattedDate
-                            : 'Tap to add entry',
+                            : 'medical_tap_to_add'.tr,
                         style: TextStyle(
                           fontSize: 11,
                           color: Colors.grey.shade400,

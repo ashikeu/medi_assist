@@ -3,7 +3,7 @@ import 'package:get/get.dart';
 import 'package:medi_assist/app/modules/home/views/widgets/home_header.dart';
 import 'package:medi_assist/app/modules/home/views/widgets/module_card.dart';
 import 'package:medi_assist/app/modules/home/views/widgets/permission_banner.dart';
-import 'package:medi_assist/app/modules/home/views/widgets/service_status_card.dart';
+import 'package:medi_assist/app/modules/home/views/widgets/reminder_status_card.dart';
 import 'package:medi_assist/app/modules/home/views/widgets/today_summary_card.dart';
 import 'package:medi_assist/core/constants/app_colors.dart';
 import '../../../routes/app_pages.dart';
@@ -21,7 +21,6 @@ class HomeView extends StatelessWidget {
       body: RefreshIndicator(
         onRefresh: () async {
           controller.refreshGreeting(); // already calls refreshCounts() internally
-          await controller.checkServiceStatus();
           await controller.checkPermissions();
         },
         color: AppColors.primary,
@@ -58,8 +57,8 @@ class HomeView extends StatelessWidget {
                     const SizedBox(height: 24),
 
                     // ── Section title ──
-                    const Text(
-                      'Health Modules',
+                    Text(
+                      'dashboard_health_modules'.tr,
                       style: TextStyle(
                         fontSize: 18,
                         fontWeight: FontWeight.w700,
@@ -68,7 +67,7 @@ class HomeView extends StatelessWidget {
                     ),
                     const SizedBox(height: 4),
                     Text(
-                      'Tap to manage your health reminders',
+                      'dashboard_tap_to_manage'.tr,
                       style: TextStyle(
                         fontSize: 13,
                         color: Colors.grey.shade500,
@@ -77,12 +76,12 @@ class HomeView extends StatelessWidget {
                     const SizedBox(height: 16),
 
                     // ── Module Cards Grid ──
-                    _buildModuleGrid(context),
+                    _buildModuleGrid(context, controller),
 
                     const SizedBox(height: 24),
 
-                    // ── Service Status Card ──
-                    ServiceStatusCard(controller: controller),
+                    // ── Reminder Reliability Card ──
+                    ReminderStatusCard(controller: controller),
 
                     const SizedBox(height: 24),
                   ],
@@ -95,11 +94,21 @@ class HomeView extends StatelessWidget {
     );
   }
 
-  Widget _buildModuleGrid(BuildContext context) {
+  Widget _buildModuleGrid(BuildContext context, HomeController controller) {
+    return Obx(() => _buildModuleCards(
+          context,
+          showPrayer: controller.prayerModuleEnabled.value,
+        ));
+  }
+
+  Widget _buildModuleCards(
+    BuildContext context, {
+    required bool showPrayer,
+  }) {
     final modules = [
       _ModuleData(
-        title: 'Medicine\nReminder',
-        subtitle: 'Track your medications',
+        title: 'module_medicine_title'.tr,
+        subtitle: 'module_medicine_subtitle'.tr,
         icon: Icons.medication_rounded,
         gradient: AppColors.medicineGradient,
         lightColor: AppColors.medicineColorLight,
@@ -108,8 +117,8 @@ class HomeView extends StatelessWidget {
         tag: 'medicine',
       ),
       _ModuleData(
-        title: 'Meal\nReminder',
-        subtitle: 'Never miss a meal',
+        title: 'module_meal_title'.tr,
+        subtitle: 'module_meal_subtitle'.tr,
         icon: Icons.restaurant_rounded,
         gradient: AppColors.mealGradient,
         lightColor: AppColors.mealColorLight,
@@ -118,8 +127,8 @@ class HomeView extends StatelessWidget {
         tag: 'meal',
       ),
       _ModuleData(
-        title: 'Medical\nRecords',
-        subtitle: 'Log health metrics',
+        title: 'module_medical_title'.tr,
+        subtitle: 'module_medical_subtitle'.tr,
         icon: Icons.monitor_heart_rounded,
         gradient: AppColors.medicalGradient,
         lightColor: AppColors.medicalColorLight,
@@ -128,8 +137,8 @@ class HomeView extends StatelessWidget {
         tag: 'medical',
       ),
       _ModuleData(
-        title: 'Activity\nReminder',
-        subtitle: 'Stay active daily',
+        title: 'module_activity_title'.tr,
+        subtitle: 'module_activity_subtitle'.tr,
         icon: Icons.directions_run_rounded,
         gradient: AppColors.activityGradient,
         lightColor: AppColors.activityColorLight,
@@ -137,32 +146,53 @@ class HomeView extends StatelessWidget {
         emoji: '🏃',
         tag: 'activity',
       ),
+      if (showPrayer)
+        _ModuleData(
+          title: 'module_prayer_title'.tr,
+          subtitle: 'module_prayer_subtitle'.tr,
+          icon: Icons.mosque_rounded,
+          gradient: AppColors.prayerGradient,
+          lightColor: AppColors.prayerColorLight,
+          route: Routes.prayer,
+          emoji: '🕌',
+          tag: 'prayer',
+        ),
     ];
 
-    return GridView.builder(
+    // Cell height is derived from the current text scale rather than a fixed
+    // aspect ratio: the card holds a 48px icon plus four lines of text, so at
+    // larger system font sizes a ratio-based cell clips its own content.
+    final textScale = MediaQuery.textScalerOf(context).scale(1.0);
+    final cellWidth =
+        (MediaQuery.sizeOf(context).width - 32 - 12) / 2; // padding + spacing
+    final cellHeight = (cellWidth / 0.88) + (textScale - 1.0) * 56;
+
+    // Eager children, not `GridView.builder`: this grid now sits inside an
+    // Obx, and a lazy itemBuilder runs after Obx has stopped recording
+    // dependencies — the prayer card would never appear or disappear.
+    return GridView(
       shrinkWrap: true,
       physics: const NeverScrollableScrollPhysics(),
-      gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+      gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
         crossAxisCount: 2,
         crossAxisSpacing: 12,
         mainAxisSpacing: 12,
-        childAspectRatio: 0.88,
+        mainAxisExtent: cellHeight,
       ),
-      itemCount: modules.length,
-      itemBuilder: (context, index) {
-        final module = modules[index];
-        return ModuleCard(
-          title: module.title,
-          subtitle: module.subtitle,
-          icon: module.icon,
-          gradient: module.gradient,
-          lightColor: module.lightColor,
-          route: module.route,
-          emoji: module.emoji,
-          tag: module.tag,
-          animationDelay: Duration(milliseconds: 100 * index),
-        );
-      },
+      children: [
+        for (var index = 0; index < modules.length; index++)
+          ModuleCard(
+            title: modules[index].title,
+            subtitle: modules[index].subtitle,
+            icon: modules[index].icon,
+            gradient: modules[index].gradient,
+            lightColor: modules[index].lightColor,
+            route: modules[index].route,
+            emoji: modules[index].emoji,
+            tag: modules[index].tag,
+            animationDelay: Duration(milliseconds: 100 * index),
+          ),
+      ],
     );
   }
 }

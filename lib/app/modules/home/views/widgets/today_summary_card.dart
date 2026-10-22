@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:medi_assist/core/constants/app_colors.dart';
+import '../../../../../core/localization/localized_digits.dart';
 import '../../controllers/home_controller.dart';
 
 class TodaySummaryCard extends StatelessWidget {
@@ -49,9 +50,9 @@ class TodaySummaryCard extends StatelessWidget {
                   ),
                 ),
                 const SizedBox(width: 10),
-                const Text(
-                  "Today's Overview",
-                  style: TextStyle(
+                Text(
+                  'dashboard_todays_overview'.tr,
+                  style: const TextStyle(
                     fontSize: 15,
                     fontWeight: FontWeight.w700,
                   ),
@@ -64,28 +65,28 @@ class TodaySummaryCard extends StatelessWidget {
             Obx(() => Row(
                   children: [
                     _SummaryItem(
-                      label: 'Medicines',
+                      label: 'summary_medicines'.tr,
                       count: controller.activeMedicineCount.value,
                       icon: Icons.medication_rounded,
                       color: AppColors.medicineColor,
                     ),
                     _SummaryDivider(),
                     _SummaryItem(
-                      label: 'Meals',
+                      label: 'summary_meals'.tr,
                       count: controller.activeMealCount.value,
                       icon: Icons.restaurant_rounded,
                       color: AppColors.mealColor,
                     ),
                     _SummaryDivider(),
                     _SummaryItem(
-                      label: 'Activities',
+                      label: 'summary_activities'.tr,
                       count: controller.activeActivityCount.value,
                       icon: Icons.directions_run_rounded,
                       color: AppColors.activityColor,
                     ),
                     _SummaryDivider(),
                     _SummaryItem(
-                      label: 'Records',
+                      label: 'summary_records'.tr,
                       count: controller.totalRecordsCount.value,
                       icon: Icons.monitor_heart_rounded,
                       color: AppColors.medicalColor,
@@ -128,7 +129,7 @@ class _SummaryItem extends StatelessWidget {
           ),
           const SizedBox(height: 8),
           Text(
-            count.toString(),
+            count.localizedDigits,
             style: TextStyle(
               fontSize: 20,
               fontWeight: FontWeight.w800,

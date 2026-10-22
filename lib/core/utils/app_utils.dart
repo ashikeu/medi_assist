@@ -7,9 +7,9 @@ class AppUtils {
 
   // ─── Snackbars ───────────────────────────────────────────────────────────────
 
-  static void showSuccess(String message, {String title = 'Success'}) {
+  static void showSuccess(String message, {String? title}) {
     Get.snackbar(
-      title,
+      title ?? 'success'.tr,
       message,
       snackPosition: SnackPosition.BOTTOM,
       backgroundColor: AppColors.secondary,
@@ -22,9 +22,9 @@ class AppUtils {
     );
   }
 
-  static void showError(String message, {String title = 'Error'}) {
+  static void showError(String message, {String? title}) {
     Get.snackbar(
-      title,
+      title ?? 'error'.tr,
       message,
       snackPosition: SnackPosition.BOTTOM,
       backgroundColor: AppColors.danger,
@@ -37,9 +37,9 @@ class AppUtils {
     );
   }
 
-  static void showWarning(String message, {String title = 'Warning'}) {
+  static void showWarning(String message, {String? title}) {
     Get.snackbar(
-      title,
+      title ?? 'warning'.tr,
       message,
       snackPosition: SnackPosition.BOTTOM,
       backgroundColor: AppColors.warning,
@@ -51,9 +51,9 @@ class AppUtils {
     );
   }
 
-  static void showInfo(String message, {String title = 'Info'}) {
+  static void showInfo(String message, {String? title}) {
     Get.snackbar(
-      title,
+      title ?? 'info'.tr,
       message,
       snackPosition: SnackPosition.BOTTOM,
       backgroundColor: AppColors.primary,
@@ -67,11 +67,80 @@ class AppUtils {
 
   // ─── Dialogs ─────────────────────────────────────────────────────────────────
 
+  /// Modal outcome popup for save actions — the success/failure counterpart to
+  /// [showConfirmDialog].
+  ///
+  /// Deliberately fire-and-forget (`void`, not `Future`): callers show it right
+  /// after `Get.back()`, and awaiting it inside a `try` would hold the save
+  /// method's `finally` — and so `isLoading` — until the user taps OK, leaving a
+  /// spinner running behind the dialog. It is also queued to the next frame so
+  /// the dialog route is never pushed in the same frame the form is popped.
+  static void showResultDialog({
+    required bool success,
+    required String title,
+    required String message,
+  }) {
+    final color = success ? AppColors.secondary : AppColors.danger;
+    final icon =
+        success ? Icons.check_circle_rounded : Icons.error_outline_rounded;
+
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      Get.dialog(
+        AlertDialog(
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+          contentPadding: const EdgeInsets.all(24),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Container(
+                width: 64,
+                height: 64,
+                decoration: BoxDecoration(
+                  color: color.withOpacity(0.1),
+                  shape: BoxShape.circle,
+                ),
+                child: Icon(icon, color: color, size: 32),
+              ),
+              const SizedBox(height: 16),
+              Text(
+                title,
+                style: const TextStyle(
+                  fontSize: 18,
+                  fontWeight: FontWeight.w700,
+                ),
+                textAlign: TextAlign.center,
+              ),
+              const SizedBox(height: 8),
+              Text(
+                message,
+                style: TextStyle(
+                  fontSize: 14,
+                  color: Colors.grey.shade600,
+                  height: 1.5,
+                ),
+                textAlign: TextAlign.center,
+              ),
+              const SizedBox(height: 24),
+              SizedBox(
+                width: double.infinity,
+                child: ElevatedButton(
+                  onPressed: () => Get.back(),
+                  style: ElevatedButton.styleFrom(backgroundColor: color),
+                  child: Text('ok'.tr),
+                ),
+              ),
+            ],
+          ),
+        ),
+      );
+    });
+  }
+
   static Future<bool> showConfirmDialog({
     required String title,
     required String message,
-    String confirmText = 'Delete',
-    String cancelText = 'Cancel',
+    String? confirmText,
+    String? cancelText,
     Color confirmColor = AppColors.danger,
     IconData icon = Icons.delete_outline_rounded,
   }) async {
@@ -116,7 +185,7 @@ class AppUtils {
                 Expanded(
                   child: OutlinedButton(
                     onPressed: () => Get.back(result: false),
-                    child: Text(cancelText),
+                    child: Text(cancelText ?? 'cancel'.tr),
                   ),
                 ),
                 const SizedBox(width: 12),
@@ -126,7 +195,7 @@ class AppUtils {
                     style: ElevatedButton.styleFrom(
                       backgroundColor: confirmColor,
                     ),
-                    child: Text(confirmText),
+                    child: Text(confirmText ?? 'delete'.tr),
                   ),
                 ),
               ],
@@ -144,15 +213,15 @@ class AppUtils {
   static String notifTypeLabel(String type) {
     switch (type) {
       case 'notification':
-        return 'Notification';
+        return 'notif_type_notification'.tr;
       case 'alarm':
-        return 'Alarm';
+        return 'notif_type_alarm'.tr;
       case 'both':
-        return 'Notification + Alarm';
+        return 'notif_type_both'.tr;
       case 'none':
-        return 'None';
+        return 'notif_type_none'.tr;
       default:
-        return 'Notification';
+        return 'notif_type_notification'.tr;
     }
   }
 
@@ -198,6 +267,8 @@ class AppUtils {
         return AppColors.medicalColor;
       case 'activity':
         return AppColors.activityColor;
+      case 'prayer':
+        return AppColors.prayerColor;
       default:
         return AppColors.primary;
     }

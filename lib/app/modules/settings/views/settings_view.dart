@@ -2,6 +2,10 @@ import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:medi_assist/core/constants/app_colors.dart';
 import 'package:medi_assist/core/constants/app_constants.dart';
+import '../../../../core/localization/app_locales.dart';
+import '../../../../core/localization/localized_digits.dart';
+import '../../../../core/widgets/alarm_sound_picker.dart';
+import '../../../routes/app_pages.dart';
 import '../controllers/settings_controller.dart';
 
 class SettingsView extends StatelessWidget {
@@ -23,38 +27,57 @@ class SettingsView extends StatelessWidget {
           _buildAppInfoCard(isDark),
           const SizedBox(height: 24),
 
-          // ── Background Service ──
-          _buildSectionTitle('Background Service'),
+          // ── Language ──
+          // First section deliberately: someone who cannot read the rest of
+          // this screen needs to reach it without understanding any of it.
+          _buildSectionTitle('settings_language'.tr),
           const SizedBox(height: 10),
-          _buildServiceCard(controller, isDark),
+          _buildLanguageCard(controller, isDark),
           const SizedBox(height: 24),
 
           // ── Permissions ──
-          _buildSectionTitle('Permissions'),
+          _buildSectionTitle('settings_permissions'.tr),
           const SizedBox(height: 10),
           _buildPermissionsCard(controller, isDark),
           const SizedBox(height: 24),
 
           // ── Reminders ──
-          _buildSectionTitle('Reminders'),
+          _buildSectionTitle('settings_reminders'.tr),
           const SizedBox(height: 10),
           _buildRemindersCard(controller, isDark),
+          const SizedBox(height: 12),
+          // The default every reminder inherits unless it names its own sound.
+          AlarmSoundRow(
+            selected: controller.defaultAlarmSound,
+            onChanged: controller.setDefaultAlarmSound,
+            isDark: isDark,
+            allowInherit: false,
+          ),
+          const SizedBox(height: 24),
+
+          // ── Prayer ──
+          // Location lives here as well as inside the module, because
+          // "change my prayer location" is the kind of thing people look for
+          // in Settings rather than by navigating back into the feature.
+          _buildSectionTitle('module_prayer_title'.tr),
+          const SizedBox(height: 10),
+          _buildPrayerCard(controller, isDark),
           const SizedBox(height: 24),
 
           // ── Diagnostics ──
-          _buildSectionTitle('Diagnostics'),
+          _buildSectionTitle('settings_diagnostics'.tr),
           const SizedBox(height: 10),
           _buildDiagnosticsCard(controller, isDark),
           const SizedBox(height: 24),
 
           // ── Data ──
-          _buildSectionTitle('Data Management'),
+          _buildSectionTitle('settings_data_management'.tr),
           const SizedBox(height: 10),
           _buildDataCard(controller, isDark),
           const SizedBox(height: 24),
 
           // ── Backup & Restore ──
-          _buildSectionTitle('Backup & Restore'),
+          _buildSectionTitle('settings_backup_restore'.tr),
           const SizedBox(height: 10),
           _buildBackupCard(controller, isDark),
           const SizedBox(height: 24),
@@ -91,9 +114,9 @@ class SettingsView extends StatelessWidget {
           ),
         ),
       ),
-      title: const Text(
-        'Settings',
-        style: TextStyle(
+      title: Text(
+        'settings_title'.tr,
+        style: const TextStyle(
           fontSize: 18,
           fontWeight: FontWeight.w700,
           letterSpacing: -0.3,
@@ -159,9 +182,9 @@ class SettingsView extends StatelessWidget {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                const Text(
-                  'MediAssist',
-                  style: TextStyle(
+                Text(
+                  'app_name'.tr,
+                  style: const TextStyle(
                     color: Colors.white,
                     fontSize: 20,
                     fontWeight: FontWeight.w800,
@@ -169,7 +192,9 @@ class SettingsView extends StatelessWidget {
                   ),
                 ),
                 Text(
-                  'Version ${AppConstants.appVersion}',
+                  'settings_version'.trParams({
+                    'version': AppConstants.appVersion.localizedDigits,
+                  }),
                   style: TextStyle(
                     color: Colors.white.withOpacity(0.8),
                     fontSize: 13,
@@ -185,9 +210,9 @@ class SettingsView extends StatelessWidget {
                     color: Colors.white.withOpacity(0.2),
                     borderRadius: BorderRadius.circular(8),
                   ),
-                  child: const Text(
-                    'Your Personal Health Companion',
-                    style: TextStyle(
+                  child: Text(
+                    'app_tagline'.tr,
+                    style: const TextStyle(
                       color: Colors.white,
                       fontSize: 11,
                       fontWeight: FontWeight.w500,
@@ -202,28 +227,30 @@ class SettingsView extends StatelessWidget {
     );
   }
 
-  // ─── Service Card ─────────────────────────────────────────────────────────────
-  Widget _buildServiceCard(SettingsController controller, bool isDark) {
+  // ─── Language Card ────────────────────────────────────────────────────────────
+  /// Every supported language, laid out flat rather than behind a dropdown.
+  ///
+  /// Each row is labelled in its own language, so it is recognisable to the
+  /// person who needs it regardless of what the app is currently showing.
+  Widget _buildLanguageCard(SettingsController controller, bool isDark) {
     return _SettingsCard(
       isDark: isDark,
       children: [
         Obx(() {
-          final isRunning = controller.isServiceRunning.value;
-          return _SettingsTile(
-            isDark: isDark,
-            icon: isRunning ? Icons.shield_rounded : Icons.shield_outlined,
-            iconColor: isRunning ? AppColors.secondary : AppColors.danger,
-            title: 'Background Service',
-            subtitle: isRunning
-                ? 'Running 24/7 — reminders are reliable'
-                : 'Stopped — reminders may be delayed',
-            trailing: Switch(
-              value: isRunning,
-              onChanged: (_) => controller.toggleForegroundService(),
-              activeColor: AppColors.secondary,
-              materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
-            ),
-            showDivider: false,
+          final selectedTag = controller.languageTag.value;
+          final languages = AppLocales.supported;
+          return Column(
+            children: languages
+                .map(
+                  (language) => _LanguageTile(
+                    isDark: isDark,
+                    language: language,
+                    isSelected: language.tag == selectedTag,
+                    onTap: () => controller.changeLanguage(language),
+                    showDivider: language != languages.last,
+                  ),
+                )
+                .toList(),
           );
         }),
       ],
@@ -245,8 +272,8 @@ class SettingsView extends StatelessWidget {
               _PermissionTile(
                 isDark: isDark,
                 icon: Icons.notifications_outlined,
-                title: 'Notifications',
-                subtitle: 'Required for reminder alerts',
+                title: 'settings_notifications'.tr,
+                subtitle: 'settings_notifications_detail'.tr,
                 isGranted: status['notification'] ?? false,
                 onTap: controller.requestAllPermissions,
                 showDivider: true,
@@ -256,8 +283,8 @@ class SettingsView extends StatelessWidget {
               _PermissionTile(
                 isDark: isDark,
                 icon: Icons.alarm_outlined,
-                title: 'Exact Alarms',
-                subtitle: 'Required for precise alarm timing',
+                title: 'settings_exact_alarms'.tr,
+                subtitle: 'settings_exact_alarms_detail'.tr,
                 isGranted: status['exactAlarm'] ?? false,
                 onTap: controller.openAlarmSettings,
                 showDivider: true,
@@ -267,8 +294,8 @@ class SettingsView extends StatelessWidget {
               _PermissionTile(
                 isDark: isDark,
                 icon: Icons.battery_saver_outlined,
-                title: 'Battery Optimization',
-                subtitle: 'Disable to keep reminders running',
+                title: 'settings_battery'.tr,
+                subtitle: 'settings_disable_to_keep'.tr,
                 isGranted: status['batteryOptimization'] ?? false,
                 onTap: controller.openBatterySettings,
                 showDivider: false,
@@ -284,8 +311,8 @@ class SettingsView extends StatelessWidget {
           isDark: isDark,
           icon: Icons.refresh_rounded,
           iconColor: AppColors.primary,
-          title: 'Refresh Permission Status',
-          subtitle: 'Check current permission states',
+          title: 'settings_refresh_permissions'.tr,
+          subtitle: 'settings_refresh_permissions_detail'.tr,
           onTap: controller.refreshPermissions,
           showDivider: false,
         ),
@@ -303,8 +330,8 @@ class SettingsView extends StatelessWidget {
           isDark: isDark,
           icon: Icons.restart_alt_rounded,
           iconColor: AppColors.primary,
-          title: 'Reschedule All Reminders',
-          subtitle: 'Fix reminders if they stopped working',
+          title: 'settings_reschedule_all'.tr,
+          subtitle: 'settings_reschedule_all_detail'.tr,
           onTap: controller.rescheduleAll,
           showDivider: true,
         ),
@@ -312,8 +339,8 @@ class SettingsView extends StatelessWidget {
           isDark: isDark,
           icon: Icons.notifications_active_rounded,
           iconColor: AppColors.secondary,
-          title: 'Send Test Notification',
-          subtitle: 'Verify notifications are working',
+          title: 'settings_test_notification'.tr,
+          subtitle: 'settings_test_notification_detail'.tr,
           onTap: controller.sendTestNotification,
           showDivider: false,
         ),
@@ -322,6 +349,44 @@ class SettingsView extends StatelessWidget {
   }
 
   // ─── Diagnostics Card ─────────────────────────────────────────────────────────
+  // ─── Prayer ──────────────────────────────────────────────────────────────────
+  Widget _buildPrayerCard(SettingsController controller, bool isDark) {
+    return _SettingsCard(
+      isDark: isDark,
+      children: [
+        Obx(
+          () => _SettingsTile(
+            isDark: isDark,
+            icon: Icons.place_outlined,
+            iconColor: AppColors.prayerColor,
+            title: 'prayer_location_title'.tr,
+            subtitle: controller.prayerLocationLabel.value,
+            onTap: () => Get.toNamed(Routes.prayerLocation),
+            showDivider: true,
+          ),
+        ),
+        _SettingsTile(
+          isDark: isDark,
+          icon: Icons.tune_rounded,
+          iconColor: AppColors.prayerColor,
+          title: 'prayer_settings_title'.tr,
+          subtitle: 'prayer_settings_subtitle'.tr,
+          onTap: () => Get.toNamed(Routes.prayerSettings),
+          showDivider: true,
+        ),
+        _SettingsTile(
+          isDark: isDark,
+          icon: Icons.notifications_active_outlined,
+          iconColor: AppColors.prayerColor,
+          title: 'prayer_reminders_title'.tr,
+          subtitle: 'prayer_reminders_subtitle'.tr,
+          onTap: () => Get.toNamed(Routes.prayerReminders),
+          showDivider: false,
+        ),
+      ],
+    );
+  }
+
   Widget _buildDiagnosticsCard(
       SettingsController controller, bool isDark) {
     return _SettingsCard(
@@ -332,9 +397,10 @@ class SettingsView extends StatelessWidget {
             isDark: isDark,
             icon: Icons.pending_outlined,
             iconColor: AppColors.primary,
-            title: 'Pending Notifications',
-            subtitle:
-                '${controller.pendingNotifCount.value} scheduled notification${controller.pendingNotifCount.value != 1 ? 's' : ''}',
+            title: 'settings_pending_notifications'.tr,
+            subtitle: 'settings_pending_count'.trParams({
+              'count': controller.pendingNotifCount.value.localizedDigits,
+            }),
             trailing: Container(
               padding: const EdgeInsets.symmetric(
                 horizontal: 10,
@@ -370,8 +436,8 @@ class SettingsView extends StatelessWidget {
           isDark: isDark,
           icon: Icons.delete_forever_rounded,
           iconColor: AppColors.danger,
-          title: 'Clear All Data',
-          subtitle: 'Delete all medicines, meals, records & activities',
+          title: 'settings_clear_data'.tr,
+          subtitle: 'settings_clear_data_detail'.tr,
           titleColor: AppColors.danger,
           onTap: controller.clearAllData,
           showDivider: false,
@@ -389,8 +455,8 @@ class SettingsView extends StatelessWidget {
           isDark: isDark,
           icon: Icons.backup_rounded,
           iconColor: AppColors.primary,
-          title: 'Export Backup',
-          subtitle: 'Save your data to a file',
+          title: 'settings_export'.tr,
+          subtitle: 'settings_export_detail'.tr,
           onTap: controller.exportBackup,
           showDivider: true,
         ),
@@ -398,8 +464,8 @@ class SettingsView extends StatelessWidget {
           isDark: isDark,
           icon: Icons.restore_from_trash_rounded,
           iconColor: AppColors.secondary,
-          title: 'Import Backup',
-          subtitle: 'Restore data from a backup file',
+          title: 'settings_import'.tr,
+          subtitle: 'settings_import_detail'.tr,
           onTap: controller.importBackup,
           showDivider: false,
         ),
@@ -416,16 +482,18 @@ class SettingsView extends StatelessWidget {
           isDark: isDark,
           icon: Icons.info_outline_rounded,
           iconColor: AppColors.primary,
-          title: 'About MediAssist',
-          subtitle: 'Health reminder app — v${AppConstants.appVersion}',
+          title: 'settings_about'.tr,
+          subtitle: 'settings_health_reminder_version'.trParams({
+            'version': AppConstants.appVersion.localizedDigits,
+          }),
           showDivider: true,
         ),
         _SettingsTile(
           isDark: isDark,
           icon: Icons.privacy_tip_outlined,
           iconColor: AppColors.secondary,
-          title: 'Privacy',
-          subtitle: 'All data is stored locally on your device',
+          title: 'settings_privacy'.tr,
+          subtitle: 'settings_privacy_detail'.tr,
           showDivider: false,
         ),
       ],
@@ -649,9 +717,9 @@ class _PermissionTile extends StatelessWidget {
                           color: AppColors.secondary.withOpacity(0.1),
                           borderRadius: BorderRadius.circular(8),
                         ),
-                        child: const Text(
-                          'Granted',
-                          style: TextStyle(
+                        child: Text(
+                          'granted'.tr,
+                          style: const TextStyle(
                             fontSize: 12,
                             fontWeight: FontWeight.w600,
                             color: AppColors.secondary,
@@ -667,15 +735,110 @@ class _PermissionTile extends StatelessWidget {
                           color: AppColors.danger.withOpacity(0.1),
                           borderRadius: BorderRadius.circular(8),
                         ),
-                        child: const Text(
-                          'Fix',
-                          style: TextStyle(
+                        child: Text(
+                          'fix'.tr,
+                          style: const TextStyle(
                             fontSize: 12,
                             fontWeight: FontWeight.w600,
                             color: AppColors.danger,
                           ),
                         ),
                       ),
+              ],
+            ),
+          ),
+        ),
+        if (showDivider)
+          Divider(
+            height: 1,
+            indent: 70,
+            color: Colors.grey.withOpacity(0.1),
+          ),
+      ],
+    );
+  }
+}
+// ─── Language Row ─────────────────────────────────────────────────────────────
+class _LanguageTile extends StatelessWidget {
+  final bool isDark;
+  final AppLanguage language;
+  final bool isSelected;
+  final VoidCallback onTap;
+  final bool showDivider;
+
+  const _LanguageTile({
+    required this.isDark,
+    required this.language,
+    required this.isSelected,
+    required this.onTap,
+    required this.showDivider,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final textPrimary =
+        isDark ? AppColors.darkTextPrimary : AppColors.lightTextPrimary;
+
+    return Column(
+      children: [
+        InkWell(
+          onTap: onTap,
+          borderRadius: BorderRadius.circular(16),
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+            child: Row(
+              children: [
+                Container(
+                  width: 40,
+                  height: 40,
+                  alignment: Alignment.center,
+                  decoration: BoxDecoration(
+                    color: AppColors.primary.withOpacity(0.1),
+                    borderRadius: BorderRadius.circular(11),
+                  ),
+                  child: Text(
+                    language.flag,
+                    style: const TextStyle(fontSize: 20),
+                  ),
+                ),
+                const SizedBox(width: 14),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        language.name,
+                        style: TextStyle(
+                          fontSize: 15,
+                          fontWeight: FontWeight.w600,
+                          color: isSelected ? AppColors.primary : textPrimary,
+                        ),
+                      ),
+                      const SizedBox(height: 2),
+                      Text(
+                        language.englishName,
+                        style: TextStyle(
+                          fontSize: 12,
+                          color: Colors.grey.shade500,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                // A check rather than a radio: this takes effect the moment it
+                // is tapped, so there is nothing left to confirm.
+                if (isSelected)
+                  const Icon(
+                    Icons.check_circle_rounded,
+                    color: AppColors.primary,
+                    size: 22,
+                  )
+                else
+                  Icon(
+                    Icons.circle_outlined,
+                    color: Colors.grey.shade400,
+                    size: 22,
+                  ),
               ],
             ),
           ),

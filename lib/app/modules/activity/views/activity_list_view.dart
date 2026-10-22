@@ -4,6 +4,7 @@ import 'package:get/get.dart';
 import 'package:medi_assist/app/routes/app_pages.dart';
 import 'package:medi_assist/core/constants/app_colors.dart';
 import 'package:medi_assist/core/utils/app_utils.dart';
+import 'package:medi_assist/core/utils/time_utils.dart';
 import 'package:medi_assist/models/activity_model.dart';
 import '../controllers/activity_controller.dart';
 
@@ -74,9 +75,9 @@ class ActivityListView extends StatelessWidget {
       title: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Text(
-            'Activity Reminder',
-            style: TextStyle(
+          Text(
+            'notif_activity_title'.tr,
+            style: const TextStyle(
               fontSize: 18,
               fontWeight: FontWeight.w700,
               letterSpacing: -0.3,
@@ -120,7 +121,7 @@ class ActivityListView extends StatelessWidget {
       child: TextField(
         onChanged: controller.setSearchQuery,
         decoration: InputDecoration(
-          hintText: 'Search activities...',
+          hintText: 'activity_search'.tr,
           prefixIcon: const Icon(
             Icons.search_rounded,
             color: AppColors.activityColor,
@@ -202,8 +203,8 @@ class ActivityListView extends StatelessWidget {
             const SizedBox(height: 24),
             Text(
               controller.searchQuery.value.isNotEmpty
-                  ? 'No activities found'
-                  : 'No activity reminders yet',
+                  ? 'activity_not_found'.tr
+                  : 'activity_empty_title'.tr,
               style: const TextStyle(
                 fontSize: 20,
                 fontWeight: FontWeight.w700,
@@ -213,8 +214,8 @@ class ActivityListView extends StatelessWidget {
             const SizedBox(height: 10),
             Text(
               controller.searchQuery.value.isNotEmpty
-                  ? 'Try a different search term'
-                  : 'Add your workouts, walks, yoga\nand stay active every day',
+                  ? 'try_different_search'.tr
+                  : 'activity_empty_detail'.tr,
               style: TextStyle(
                 fontSize: 14,
                 color: Colors.grey.shade500,
@@ -230,7 +231,7 @@ class ActivityListView extends StatelessWidget {
                   Get.toNamed(Routes.addEditActivity);
                 },
                 icon: const Icon(Icons.add_rounded),
-                label: const Text('Add Activity'),
+                label: Text('activity_add'.tr),
                 style: ElevatedButton.styleFrom(
                   backgroundColor: AppColors.activityColor,
                   padding: const EdgeInsets.symmetric(
@@ -260,9 +261,9 @@ class ActivityListView extends StatelessWidget {
       foregroundColor: Colors.white,
       elevation: 4,
       icon: const Icon(Icons.add_rounded),
-      label: const Text(
-        'Add Activity',
-        style: TextStyle(fontWeight: FontWeight.w600),
+      label: Text(
+        'activity_add'.tr,
+        style: const TextStyle(fontWeight: FontWeight.w600),
       ),
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
     );
@@ -349,7 +350,7 @@ class _ActivityListItemState extends State<_ActivityListItem>
                   backgroundColor: AppColors.primary,
                   foregroundColor: Colors.white,
                   icon: Icons.edit_rounded,
-                  label: 'Edit',
+                  label: 'edit'.tr,
                   borderRadius: const BorderRadius.only(
                     topLeft: Radius.circular(14),
                     bottomLeft: Radius.circular(14),
@@ -361,7 +362,7 @@ class _ActivityListItemState extends State<_ActivityListItem>
                   backgroundColor: AppColors.danger,
                   foregroundColor: Colors.white,
                   icon: Icons.delete_rounded,
-                  label: 'Delete',
+                  label: 'delete'.tr,
                   borderRadius: const BorderRadius.only(
                     topRight: Radius.circular(14),
                     bottomRight: Radius.circular(14),
@@ -493,7 +494,7 @@ class _ActivityListItemState extends State<_ActivityListItem>
                             ),
                             const SizedBox(width: 4),
                             Text(
-                              activity.formattedTime,
+                              TimeUtils.formatTimeOfDay(activity.time),
                               style: const TextStyle(
                                 fontSize: 12,
                                 fontWeight: FontWeight.w600,
@@ -583,7 +584,7 @@ class _ActivityListItemState extends State<_ActivityListItem>
                 ),
                 const SizedBox(height: 10),
                 Text(
-                  '← swipe',
+                  'swipe_hint'.tr,
                   style: TextStyle(
                     fontSize: 10,
                     color: Colors.grey.shade400,
@@ -625,18 +626,18 @@ class _ActivityListItemState extends State<_ActivityListItem>
 
   String _getActivityCategory(String name) {
     final lower = name.toLowerCase();
-    if (lower.contains('run') || lower.contains('jog')) return 'Cardio';
-    if (lower.contains('walk')) return 'Low Impact';
-    if (lower.contains('swim')) return 'Full Body';
-    if (lower.contains('cycl') || lower.contains('bike')) return 'Cardio';
+    if (lower.contains('run') || lower.contains('jog')) return 'preset_cardio'.tr;
+    if (lower.contains('walk')) return 'preset_low_impact'.tr;
+    if (lower.contains('swim')) return 'preset_full_body'.tr;
+    if (lower.contains('cycl') || lower.contains('bike')) return 'preset_cardio'.tr;
     if (lower.contains('yoga') || lower.contains('meditat')) {
-      return 'Mindfulness';
+      return 'preset_mindfulness'.tr;
     }
     if (lower.contains('gym') || lower.contains('workout') ||
         lower.contains('weight')) {
-      return 'Strength';
+      return 'preset_strength'.tr;
     }
-    if (lower.contains('stretch')) return 'Flexibility';
-    return 'Fitness';
+    if (lower.contains('stretch')) return 'preset_flexibility'.tr;
+    return 'preset_fitness'.tr;
   }
 }

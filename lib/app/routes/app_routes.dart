@@ -13,6 +13,13 @@ abstract class Routes {
   static const addEditMedicalRecord = '/medical-records/add-edit';
   static const activity = '/activity';
   static const addEditActivity = '/activity/add-edit';
+  static const prayer = '/prayer';
+  static const prayerCalendar = '/prayer/calendar';
+  static const prayerLocation = '/prayer/location';
+  static const prayerSettings = '/prayer/settings';
+  static const prayerReminders = '/prayer/reminders';
+  static const addEditPrayerReminder = '/prayer/reminders/add-edit';
+  static const addEditCustomPrayer = '/prayer/custom/add-edit';
   static const settings = '/settings';
   static const splash = '/splash';
 }

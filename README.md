@@ -51,9 +51,13 @@ A comprehensive health reminder Android app built with Flutter for patients who 
 - **Snooze** with user-configurable duration (5, 10, 15, 30 minutes)
 - **Notification tap navigation** — tapping a notification opens the correct module
 
-### 🛡️ 24/7 Background Operation
-- **Foreground service** runs continuously with 60-second reminder check
-- **Auto-start after device reboot** — custom `BootReceiver` + `flutter_foreground_task`
+### 🛡️ Reliable Delivery Without a Background Service
+- **OS-level exact alarms** — `AlarmManager` fires reminders even in Doze, with no
+  persistent notification and no battery drain from polling
+- **Survives reboot** — pending notifications and alarms are re-armed by the
+  platform boot receivers, then re-verified from storage on next launch
+- **Re-armed on every app resume** — catches anything the OS dropped
+- **Timezone-aware** — reminders follow your wall clock across travel and DST
 - **Battery optimization bypass** — guided setup for unrestricted background operation
 - **MIUI/Xiaomi support** — handles aggressive MIUI battery management
 
@@ -70,6 +74,18 @@ A comprehensive health reminder Android app built with Flutter for patients who 
 - Swipe-to-edit and swipe-to-delete via `flutter_slidable`
 - Empty states with helpful call-to-action
 - Color-coded modules (Indigo, Pink, Teal, Amber)
+
+### 🌐 Language — English & বাংলা
+- Switch language from **Settings → Language**; takes effect immediately, with
+  no restart, and is remembered across app launches
+- The choice lives in the settings box, so **"Clear All Data" does not reset it**
+- **Complete** Bangla, not partial: screens, dialogs, validation messages,
+  snackbars, and the reminder notifications and alarms themselves — including
+  ones already scheduled, which are re-armed in the new language on the spot
+- Natural Bangla conventions rather than a literal translation — times read
+  "সকাল ৮:০০" (part of day first, Bengali digits), not "8:00 AM"
+- Android's own notification-channel names in system Settings follow too
+- Defaults to English until the user chooses otherwise
 
 
 ## 🏗️ Architecture & Tech Stack
@@ -92,10 +108,10 @@ lib/
 │   │   └── app_theme.dart       # Material 3 light & dark themes
 │   ├── services/
 │   │   ├── storage_service.dart      # Dual-box GetStorage (data + settings)
-│   │   ├── notification_service.dart # Daily exact notifications + tap nav
+│   │   ├── notification_service.dart # Daily exact notifications + timezone + tap nav
 │   │   ├── alarm_service.dart        # alarm package wrapper + reschedule
 │   │   ├── permission_service.dart   # Runtime permissions management
-│   │   ├── foreground_service.dart   # 24/7 background service + boot rescue
+│   │   ├── backup_service.dart       # JSON export / import with rollback
 │   │   └── reminder_scheduler.dart   # Central scheduler (notif + alarm)
 │   ├── bindings/
 │   │   └── initial_binding.dart # Permanent service registrations
@@ -130,7 +146,7 @@ lib/
 | `get_storage` | ^2.1.1 | Local persistent storage (no SQLite overhead) |
 | `alarm` | ^5.1.3 | Native exact alarms with full-screen intent & sound |
 | `flutter_local_notifications` | ^19.5.0 | Daily scheduled notifications |
-| `flutter_foreground_task` | ^8.14.0 | 24/7 background foreground service |
+| `flutter_timezone` | ^5.1.0 | Resolves the device zone so reminders use local wall-clock time |
 | `permission_handler` | ^12.0.1 | Runtime Android permissions |
 | `flutter_slidable` | ^3.1.1 | Swipe-to-edit / swipe-to-delete list items |
 | `timezone` | ^0.10.1 | Timezone-aware notification scheduling |
@@ -144,10 +160,14 @@ lib/
 | Android | 8.0 (API 26) |
 | Flutter | 3.22.0 |
 | Dart | 3.3.0 |
-| Gradle | 8.13 |
+| Gradle | 8.14 |
 | AGP | 8.11.1 |
 | Kotlin | 2.2.20 |
-| JDK | 17 |
+| JDK | 17–23 (Gradle 8.14 rejects JDK 25) |
+
+> Android Studio bundles JDK 25, which Gradle 8.14 refuses. Point Flutter at a
+> supported JDK once per machine:
+> `flutter config --jdk-dir="C:/path/to/jdk-20"`
 
 > iOS is **not currently supported**. Android only.
 
@@ -173,38 +193,35 @@ User adds reminder
         │
         ▼
 ReminderScheduler.schedule()
+  (cancel-then-set, idempotent)
         │
    ┌────┴────┐
    │         │
 Notification  Alarm
-(Daily exact  (alarm pkg,
- via tzSchedule) full-screen)
-        │         │
-        └────┬────┘
-             │
-    Foreground Service
-    (60s backup check)
-             │
-    OnRepeatEvent()
-    reads GetStorage
-    fires if time matches
+(zonedSchedule (alarm pkg,
+ exactAllowWhileIdle,  full-screen
+ repeats daily)         intent)
+   │         │
+   └────┬────┘
+        ▼
+  Android AlarmManager
+  fires even in Doze
 
 ### Boot Recovery Flow
 
 Device Reboots
        │
-       ▼
-BootReceiver.kt fires
-       │
-       ▼
-ForegroundService starts
-       │
-       ▼
-onStart(starter.name == 'boot')
-       │
-       ▼
-Reads GetStorage → reschedules
-all active alarms for next occurrence
+       ├──────────────────────────┐
+       ▼                          ▼
+ScheduledNotification      alarm pkg BootReceiver
+BootReceiver               re-arms stored alarms
+(re-arms notifications)
+       │                          │
+       └────────────┬─────────────┘
+                    ▼
+        Next app launch / resume
+        rescheduleAllFromStorage()
+        re-verifies everything
 
 ### Alarm Repeat Flow
 
@@ -215,7 +232,7 @@ Alarm.ringing stream emits
        │
        ▼
 _rescheduleAlarmForNextDay()
-schedules same alarm +24 hours
+same ID, +24 hours
        │
        ▼
 In-app screen shows (if app open)
@@ -224,7 +241,9 @@ Notification shows Stop button (always)
    ┌───┴───┐
    Stop   Snooze
    │        │
-  Done    +N min
+  Done    +N min under a SEPARATE
+          snooze ID, so the daily
+          alarm never drifts
 
 ## 🔧 Configuration
 
@@ -236,7 +255,12 @@ Notification shows Stop button (always)
 | Meal | 2000–2999 | 6000–6999 |
 | Activity | 3000–3999 | 7000–7999 |
 | Medical | 4000–4999 | 8000–8999 |
+| Snooze | — | 9000–9999 |
 | Test | 9999 | — |
+
+Medicine slot `i` uses `base + i` and bases are spaced 10 apart, so a medicine is
+capped at 10 reminder times (`ReminderScheduler.maxMedicineTimes`). Snoozes get
+their own range so re-arming one never overwrites the daily alarm it came from.
 
 ### Storage Boxes
 
@@ -262,9 +286,23 @@ Contributions are welcome! This project is maintained for the benefit of patient
 
 - Follow the existing **GetX pattern** (controller / view / binding separation)
 - Use **relative imports** — never `package:medi_assist/` inside the project
-- All Obx widgets must access actual `.obs` Rx variables directly
+- All Obx widgets must access actual `.obs` Rx variables directly, via `.value`
+  (interpolating the `Rx` object itself compiles but comparisons against it
+  always fail)
 - Do not use `GridView.builder` or `ListView.builder` inside `Obx` (lazy itemBuilder breaks GetX tracking — use eager `.map().toList()` instead)
-- Test on a **physical Android device** before submitting
+- **Never duplicate reminder-ID arithmetic.** The helpers at the bottom of
+  `ReminderScheduler` are the only copy; a second one silently produces a
+  different ID for the same reminder and users get duplicate notifications
+- Anything scheduled must go through `ReminderScheduler`, so cancel/reschedule
+  stays symmetric — orphaned alarms cannot be stopped from the UI
+- **No user-facing string may be hardcoded.** Add a key to both language maps in
+  `AppTranslations` and read it with `.tr` (or `.trParams` when it carries a
+  value — word order differs between English and Bangla, so interpolation is not
+  interchangeable). `flutter test` fails if the two maps drift apart
+- A `Text` displaying a `.tr` string cannot be `const` — it would keep whichever
+  language it was first built in. Put the `const` on the `TextStyle` instead
+- Test on a **physical Android device** before submitting, including at 1.3×
+  system font size and on Android 15 (edge-to-edge is enforced there)
 - Update `README.md` if you add new features or dependencies
 
 ### Roadmap / Planned Features

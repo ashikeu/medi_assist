@@ -50,9 +50,9 @@ class HomeHeader extends StatelessWidget {
                             ),
                           ),
                           const SizedBox(width: 10),
-                          const Text(
-                            'MediAssist',
-                            style: TextStyle(
+                          Text(
+                            'app_name'.tr,
+                            style: const TextStyle(
                               color: Colors.white,
                               fontSize: 20,
                               fontWeight: FontWeight.w800,
@@ -63,9 +63,14 @@ class HomeHeader extends StatelessWidget {
                       ),
                       Row(
                         children: [
-                          // Service indicator dot
+                          // Reminder reliability indicator
                           Obx(() => _ServiceDot(
-                                isRunning: controller.isServiceRunning.value,
+                                isRunning:
+                                    (controller.permissionStatus['exactAlarm'] ??
+                                            false) &&
+                                        (controller.permissionStatus[
+                                                'notification'] ??
+                                            false),
                               )),
                           const SizedBox(width: 8),
                           // Settings button
@@ -104,9 +109,9 @@ class HomeHeader extends StatelessWidget {
                     ),
                   ),
                   const SizedBox(height: 4),
-                  const Text(
-                    'Stay healthy, stay on track 💪',
-                    style: TextStyle(
+                  Text(
+                    'header_stay_healthy'.tr,
+                    style: const TextStyle(
                       color: Colors.white,
                       fontSize: 22,
                       fontWeight: FontWeight.w700,
@@ -216,7 +221,7 @@ class _ServiceDotState extends State<_ServiceDot>
               ),
               const SizedBox(width: 5),
               Text(
-                widget.isRunning ? 'Active' : 'Inactive',
+                widget.isRunning ? 'active'.tr : 'inactive'.tr,
                 style: const TextStyle(
                   color: Colors.white,
                   fontSize: 11,

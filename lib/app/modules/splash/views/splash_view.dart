@@ -234,9 +234,9 @@ class _SplashViewState extends State<SplashView> with TickerProviderStateMixin {
         child: FadeTransition(opacity: _textOpacity, child: child),
       ),
       child: Column(children: [
-        const Text(
-          'MediAssist',
-          style: TextStyle(
+        Text(
+          'app_name'.tr,
+          style: const TextStyle(
               color: Colors.white,
               fontSize: 38,
               fontWeight: FontWeight.w800,
@@ -250,9 +250,9 @@ class _SplashViewState extends State<SplashView> with TickerProviderStateMixin {
             borderRadius: BorderRadius.circular(20),
             border: Border.all(color: Colors.white.withOpacity(0.25)),
           ),
-          child: const Text(
-            'Your Personal Health Companion',
-            style: TextStyle(
+          child: Text(
+            'app_tagline'.tr,
+            style: const TextStyle(
                 color: Colors.white, fontSize: 13, fontWeight: FontWeight.w500),
           ),
         ),
@@ -266,10 +266,10 @@ class _SplashViewState extends State<SplashView> with TickerProviderStateMixin {
     return Row(
       mainAxisAlignment: MainAxisAlignment.center,
       children: [
-        ('💊', 'Medicine'),
-        ('🍽️', 'Meals'),
-        ('📋', 'Records'),
-        ('🏃', 'Activity'),
+        ('💊', 'medicine_title'.tr),
+        ('🍽️', 'meal_title'.tr),
+        ('📋', 'records'.tr),
+        ('🏃', 'activity_title'.tr),
       ]
           .map((f) => Container(
                 margin: const EdgeInsets.symmetric(horizontal: 4),
@@ -322,9 +322,9 @@ class _SplashViewState extends State<SplashView> with TickerProviderStateMixin {
   }
 
   String _getLoadingText(double progress) {
-    if (progress < 0.3) return 'Initializing services...';
-    if (progress < 0.6) return 'Setting up reminders...';
-    if (progress < 0.85) return 'Checking permissions...';
-    return 'Almost ready...';
+    if (progress < 0.3) return 'splash_initializing'.tr;
+    if (progress < 0.6) return 'splash_setting_up'.tr;
+    if (progress < 0.85) return 'settings_checking_permissions'.tr;
+    return 'splash_almost_ready'.tr;
   }
 }

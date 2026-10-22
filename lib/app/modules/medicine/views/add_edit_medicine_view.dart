@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
+import 'package:medi_assist/core/widgets/alarm_sound_picker.dart';
 import 'package:medi_assist/core/constants/app_colors.dart';
 import 'package:medi_assist/core/utils/time_utils.dart';
 import 'package:medi_assist/core/widgets/notif_type_selector.dart';
@@ -28,25 +29,25 @@ class AddEditMedicineView extends StatelessWidget {
               _buildHeaderCard(isEditing),
               const SizedBox(height: 24),
 
-              _buildSectionLabel('Medicine Name', Icons.medication_rounded),
+              _buildSectionLabel('medicine_name'.tr, Icons.medication_rounded),
               const SizedBox(height: 10),
               _buildNameField(controller, isDark),
               const SizedBox(height: 24),
 
-              _buildSectionLabel('Reminder Times', Icons.access_time_rounded),
+              _buildSectionLabel('reminder_times'.tr, Icons.access_time_rounded),
               const SizedBox(height: 4),
               Text(
-                'Add one or more daily reminder times',
+                'reminder_times_hint'.tr,
                 style: TextStyle(fontSize: 12, color: Colors.grey.shade500),
               ),
               const SizedBox(height: 12),
               _buildTimesSection(controller, context, isDark),
               const SizedBox(height: 24),
 
-              _buildSectionLabel('Reminder Type', Icons.notifications_rounded),
+              _buildSectionLabel('reminder_type'.tr, Icons.notifications_rounded),
               const SizedBox(height: 4),
               Text(
-                'How would you like to be reminded?',
+                'notif_type_question'.tr,
                 style: TextStyle(fontSize: 12, color: Colors.grey.shade500),
               ),
               const SizedBox(height: 12),
@@ -56,6 +57,21 @@ class AddEditMedicineView extends StatelessWidget {
                 selectedNotifType: controller.selectedNotifType,
                 onChanged: controller.setNotifType,
                 isDark: isDark,
+              ),
+              const SizedBox(height: 24),
+
+              _buildSectionLabel('alarm_sound'.tr, Icons.music_note_rounded),
+              const SizedBox(height: 4),
+              Text('alarm_sound_form_hint'.tr,
+                  style: TextStyle(
+                      fontSize: 12, color: Colors.grey.shade500)),
+              const SizedBox(height: 12),
+              AlarmSoundRow(
+                selected: controller.selectedAlarmSound,
+                onChanged: (sound) =>
+                    controller.selectedAlarmSound.value = sound,
+                isDark: isDark,
+                accent: AppColors.medicineColor,
               ),
               const SizedBox(height: 24),
 
@@ -90,7 +106,7 @@ class AddEditMedicineView extends StatelessWidget {
         ),
       ),
       title: Text(
-        isEditing ? 'Edit Medicine' : 'Add Medicine',
+        isEditing ? 'medicine_edit'.tr : 'medicine_add'.tr,
         style: const TextStyle(
             fontSize: 18, fontWeight: FontWeight.w700, letterSpacing: -0.3),
       ),
@@ -122,7 +138,9 @@ class AddEditMedicineView extends StatelessWidget {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  isEditing ? 'Update Medicine' : 'New Medicine Reminder',
+                  isEditing
+                      ? 'medicine_update_button'.tr
+                      : 'medicine_new_reminder'.tr,
                   style: const TextStyle(
                       color: Colors.white,
                       fontSize: 16,
@@ -131,8 +149,8 @@ class AddEditMedicineView extends StatelessWidget {
                 const SizedBox(height: 3),
                 Text(
                   isEditing
-                      ? 'Modify details and save'
-                      : 'Set up your daily medicine schedule',
+                      ? 'medicine_modify_details'.tr
+                      : 'medicine_setup_schedule'.tr,
                   style: TextStyle(
                       color: Colors.white.withOpacity(0.8), fontSize: 12),
                 ),
@@ -161,7 +179,7 @@ class AddEditMedicineView extends StatelessWidget {
       textCapitalization: TextCapitalization.words,
       style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w500),
       decoration: InputDecoration(
-        hintText: 'e.g. Paracetamol 500mg',
+        hintText: 'medicine_name_hint'.tr,
         prefixIcon: const Icon(Icons.medication_outlined,
             color: AppColors.medicineColor, size: 20),
         filled: true,
@@ -273,8 +291,8 @@ class AddEditMedicineView extends StatelessWidget {
                   const SizedBox(width: 10),
                   Text(
                     controller.selectedTimes.isEmpty
-                        ? 'Add Reminder Time'
-                        : 'Add Another Time',
+                        ? 'add_reminder_time'.tr
+                        : 'add_another_time'.tr,
                     style: const TextStyle(
                         fontSize: 14,
                         fontWeight: FontWeight.w600,
@@ -343,13 +361,13 @@ class AddEditMedicineView extends StatelessWidget {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    const Text('Enable Reminders',
-                        style: TextStyle(
+                    Text('enable_reminders'.tr,
+                        style: const TextStyle(
                             fontSize: 14, fontWeight: FontWeight.w700)),
                     Text(
                       controller.isActive.value
-                          ? 'Reminders are active'
-                          : 'Reminders are paused',
+                          ? 'reminders_are_active'.tr
+                          : 'reminders_are_paused'.tr,
                       style: TextStyle(
                           fontSize: 12, color: Colors.grey.shade500),
                     ),
@@ -403,7 +421,7 @@ class AddEditMedicineView extends StatelessWidget {
                           size: 20),
                       const SizedBox(width: 10),
                       Text(
-                        isEditing ? 'Save Changes' : 'Add Medicine',
+                        isEditing ? 'save_changes'.tr : 'medicine_add'.tr,
                         style: const TextStyle(
                             fontSize: 16,
                             fontWeight: FontWeight.w700,

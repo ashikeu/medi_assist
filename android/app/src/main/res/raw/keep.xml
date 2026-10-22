@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  notification_icon is never referenced from Java/Kotlin or from another
+  resource — flutter_local_notifications and the `alarm` plugin both look it up
+  by name at runtime. The release build has shrinkResources on, which would
+  otherwise strip it as unused, and the native code that posts the notification
+  then fails to resolve the icon and shows nothing at all.
+
+  alarm.mp3 lives in assets/, not res/, so it is unaffected.
+-->
+<resources xmlns:tools="http://schemas.android.com/tools"
+    tools:keep="@drawable/notification_icon"/>

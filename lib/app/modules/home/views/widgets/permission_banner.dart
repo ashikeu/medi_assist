@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:medi_assist/core/constants/app_colors.dart';
+import 'package:get/get.dart';
 
 
 class PermissionBanner extends StatelessWidget {
@@ -41,22 +42,22 @@ class PermissionBanner extends StatelessWidget {
               ),
             ),
             const SizedBox(width: 12),
-            const Expanded(
+            Expanded(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
-                    'Permissions Required',
-                    style: TextStyle(
+                    'permissions_required'.tr,
+                    style: const TextStyle(
                       fontSize: 13,
                       fontWeight: FontWeight.w700,
                       color: AppColors.warning,
                     ),
                   ),
-                  SizedBox(height: 2),
+                  const SizedBox(height: 2),
                   Text(
-                    'Grant permissions for reliable reminders',
-                    style: TextStyle(
+                    'permissions_required_detail'.tr,
+                    style: const TextStyle(
                       fontSize: 12,
                       color: AppColors.accentDark,
                     ),

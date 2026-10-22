@@ -1,7 +1,6 @@
 import 'package:get/get.dart';
 
 // ✅ FIXED: All relative imports — no package:medi_assist/
-import '../../../../core/services/foreground_service.dart';
 import '../../../../core/services/permission_service.dart';
 import '../../../../core/services/storage_service.dart';
 import '../../../../core/utils/time_utils.dart';
@@ -10,7 +9,6 @@ class HomeController extends GetxController {
   static HomeController get to => Get.find();
 
   // ─── Reactive state ──────────────────────────────────────────────────────────
-  final RxBool isServiceRunning     = false.obs;
   final RxString greeting           = ''.obs;
   final RxMap<String, bool> permissionStatus = <String, bool>{}.obs;
   final RxBool showPermissionBanner = false.obs;
@@ -20,6 +18,11 @@ class HomeController extends GetxController {
   final RxInt activeMealCount      = 0.obs;
   final RxInt activeActivityCount  = 0.obs;
   final RxInt totalRecordsCount    = 0.obs;
+
+  /// Whether the prayer card belongs on the dashboard. Mirrored from the
+  /// settings box so turning the module off in Settings removes the card
+  /// without the user having to pull to refresh.
+  final RxBool prayerModuleEnabled = true.obs;
 
   // ─── Lifecycle ───────────────────────────────────────────────────────────────
   @override
@@ -31,7 +34,6 @@ class HomeController extends GetxController {
   Future<void> _init() async {
     greeting.value = TimeUtils.getGreeting();
     refreshCounts();
-    await checkServiceStatus();
     // Use cached permission status — don't spam Android permission APIs
     await _refreshPermissionsCached();
   }
@@ -47,26 +49,10 @@ class HomeController extends GetxController {
           StorageService.to.getActivities().where((a) => a.isActive).length;
       totalRecordsCount.value =
           StorageService.to.getMedicalRecords().length;
+      prayerModuleEnabled.value = StorageService.to.isPrayerModuleEnabled;
     } catch (e) {
       // Non-critical — counts stay at previous value
     }
-  }
-
-  // ─── Service status ──────────────────────────────────────────────────────────
-  Future<void> checkServiceStatus() async {
-    isServiceRunning.value = await MediAssistForegroundService.isRunning;
-  }
-
-  Future<void> toggleService() async {
-    if (isServiceRunning.value) {
-      await MediAssistForegroundService.stopService();
-      await StorageService.to.setServiceEnabled(false);
-    } else {
-      MediAssistForegroundService.initService();
-      await MediAssistForegroundService.startService();
-      await StorageService.to.setServiceEnabled(true);
-    }
-    await checkServiceStatus();
   }
 
   // ─── Permissions ─────────────────────────────────────────────────────────────

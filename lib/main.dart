@@ -3,21 +3,15 @@ import 'package:alarm/alarm.dart';
 import 'package:alarm/utils/alarm_set.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:flutter_foreground_task/flutter_foreground_task.dart';
 import 'package:get/get.dart';
 import 'package:get_storage/get_storage.dart';
-import 'package:timezone/data/latest_all.dart' as tzdata;
 
 import 'app.dart';
 import 'core/constants/app_constants.dart';
-import 'core/services/foreground_service.dart';
+import 'core/localization/app_locales.dart';
+import 'core/localization/app_translations.dart';
 import 'core/services/notification_service.dart';
-
-// ─── Top-level callback — defined ONLY here ───────────────────────────────────
-@pragma('vm:entry-point')
-void startCallback() {
-  FlutterForegroundTask.setTaskHandler(MediAssistTaskHandler());
-}
+import 'core/widgets/alarm_ringing_dialog.dart';
 
 // ─── Alarm stream subscription (top-level — survives navigation) ─────────────
 StreamSubscription<AlarmSet>? _alarmRingingSubscription;
@@ -30,31 +24,44 @@ Future<void> main() async {
     DeviceOrientation.portraitDown,
   ]);
 
+  // Android 15 forces edge-to-edge for targetSdk 35 regardless of what we ask
+  // for. Opting in explicitly means every Android version renders the same way,
+  // instead of only Android 15+ users seeing content behind the system bars.
+  await SystemChrome.setEnabledSystemUIMode(SystemUiMode.edgeToEdge);
+
   SystemChrome.setSystemUIOverlayStyle(
     const SystemUiOverlayStyle(
       statusBarColor: Colors.transparent,
       statusBarIconBrightness: Brightness.dark,
+      systemNavigationBarColor: Colors.transparent,
+      systemNavigationBarDividerColor: Colors.transparent,
     ),
   );
 
   // ── Init BOTH storage boxes (data + settings) ──────────────────────────────
   await GetStorage.init();
-  await GetStorage.init(AppConstants.settingsBoxName); // ✅ NEW — settings box
+  await GetStorage.init(AppConstants.settingsBoxName);
 
-  // ── Timezone ────────────────────────────────────────────────────────────────
-  tzdata.initializeTimeZones();
+  // ── Language ───────────────────────────────────────────────────────────────
+  // GetX only registers translations and sets `Get.locale` inside
+  // GetMaterialApp's initState, and `.tr` returns the raw key until it does.
+  // Everything below this line runs before that — `NotificationService`
+  // creates its notification channels during `initialize()`, and those names
+  // are what the user sees in Android's own settings. Seeding GetX here means
+  // `.tr` is usable from this point on; GetMaterialApp later sets the same
+  // values again, so nothing conflicts.
+  Get.addTranslations(AppTranslations().keys);
+  Get.locale = AppLocales.initial.locale;
+  Get.fallbackLocale = AppLocales.fallback.locale;
 
-  // ── Notifications ────────────────────────────────────────────────────────────
+  // ── Notifications (also resolves the device timezone) ──────────────────────
   await NotificationService.initialize();
 
-  // ── Alarm package ────────────────────────────────────────────────────────────
+  // ── Alarm package ──────────────────────────────────────────────────────────
   await Alarm.init();
 
-  // ── Alarm ringing listener ───────────────────────────────────────────────────
+  // ── Alarm ringing listener ─────────────────────────────────────────────────
   _setupAlarmRingingListener();
-
-  // ── Foreground task communication port ────────────────────────────────────────
-  FlutterForegroundTask.initCommunicationPort();
 
   runApp(const MediAssistApp());
 }
@@ -66,19 +73,45 @@ void _setupAlarmRingingListener() {
     debugPrint(
         '🔔 Alarm(s) ringing: ${alarmSet.alarms.map((a) => a.id).toList()}');
     for (final alarmSettings in alarmSet.alarms) {
-      // Reschedule for next day immediately when alarm fires
       _rescheduleAlarmForNextDay(alarmSettings);
-      // Show in-app alarm screen if app is open
-      _showAlarmRingingScreen(alarmSettings);
+      showAlarmRingingDialog(alarmSettings);
     }
   });
 }
 
 // ─── Reschedule for next day ──────────────────────────────────────────────────
+/// Rolls a fired alarm forward while the app happens to be running.
+///
+/// This is only a fast path. The authoritative daily repeat lives in
+/// `DailyAlarmRearmReceiver` on the Android side, because this listener cannot
+/// run at all once the app is killed — and even here it is undone a moment
+/// later when the user taps Stop, which cancels the alarm ID this just re-armed.
+/// The native sweep repairs both cases a couple of minutes after the ring.
 Future<void> _rescheduleAlarmForNextDay(AlarmSettings fired) async {
+  // A snooze is a one-off copy of a daily alarm. Rolling it forward would move
+  // the daily reminder permanently later by the snooze duration; the original
+  // alarm ID has already been re-armed for tomorrow, so there is nothing to do.
+  if (AppConstants.isSnoozeId(fired.id)) {
+    debugPrint('⏱️ Snooze ${fired.id} fired — daily alarm already armed');
+    return;
+  }
+
+  // Prayer times move every day, so "same time tomorrow" would be wrong. Their
+  // next firing is already stored natively and the re-arm sweep picks it up
+  // shortly after this ring.
+  if (AppConstants.isPrayerAlarmId(fired.id)) {
+    debugPrint('🕌 Prayer alarm ${fired.id} fired — next firing is stored '
+        'natively, leaving it to the re-arm sweep');
+    return;
+  }
+
   try {
-    final nextTime = fired.dateTime.add(const Duration(days: 1));
-    if (nextTime.isBefore(DateTime.now())) return;
+    var nextTime = fired.dateTime.add(const Duration(days: 1));
+    // Guard against a stale schedule (device was off, alarm fired late).
+    final now = DateTime.now();
+    while (nextTime.isBefore(now)) {
+      nextTime = nextTime.add(const Duration(days: 1));
+    }
 
     await Alarm.set(
       alarmSettings: AlarmSettings(
@@ -93,6 +126,7 @@ Future<void> _rescheduleAlarmForNextDay(AlarmSettings fired) async {
         ),
         warningNotificationOnKill: fired.warningNotificationOnKill,
         androidFullScreenIntent: fired.androidFullScreenIntent,
+        androidStopAlarmOnTermination: fired.androidStopAlarmOnTermination,
         notificationSettings: fired.notificationSettings,
       ),
     );
@@ -100,148 +134,4 @@ Future<void> _rescheduleAlarmForNextDay(AlarmSettings fired) async {
   } catch (e) {
     debugPrint('❌ Failed to reschedule alarm ${fired.id}: $e');
   }
-}
-
-// ─── In-app alarm screen ──────────────────────────────────────────────────────
-void _showAlarmRingingScreen(AlarmSettings alarm) {
-  if (Get.isDialogOpen == true) return;
-
-  // Read persisted snooze setting
-  final snoozeBox = GetStorage(AppConstants.settingsBoxName);
-  final snoozeMinutes =
-      snoozeBox.read<int>(AppConstants.snoozeMinutesKey) ??
-          AppConstants.defaultSnoozeMinutes;
-
-  Get.dialog(
-    WillPopScope(
-      onWillPop: () async => false,
-      child: AlertDialog(
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-        backgroundColor: const Color(0xFF1E293B),
-        contentPadding: const EdgeInsets.all(24),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            // Animated alarm icon
-            TweenAnimationBuilder<double>(
-              tween: Tween(begin: 0.85, end: 1.15),
-              duration: const Duration(milliseconds: 700),
-              curve: Curves.easeInOut,
-              builder: (_, scale, child) =>
-                  Transform.scale(scale: scale, child: child),
-              child: Container(
-                width: 80,
-                height: 80,
-                decoration: BoxDecoration(
-                  color: const Color(0xFF6366F1).withOpacity(0.2),
-                  shape: BoxShape.circle,
-                ),
-                child: const Icon(
-                  Icons.alarm_rounded,
-                  color: Color(0xFF6366F1),
-                  size: 44,
-                ),
-              ),
-            ),
-            const SizedBox(height: 20),
-            Text(
-              alarm.notificationSettings.title,
-              style: const TextStyle(
-                color: Colors.white,
-                fontSize: 20,
-                fontWeight: FontWeight.w800,
-              ),
-              textAlign: TextAlign.center,
-            ),
-            const SizedBox(height: 8),
-            Text(
-              alarm.notificationSettings.body,
-              style: TextStyle(
-                color: Colors.white.withOpacity(0.75),
-                fontSize: 14,
-              ),
-              textAlign: TextAlign.center,
-            ),
-            const SizedBox(height: 28),
-            // Stop button
-            SizedBox(
-              width: double.infinity,
-              child: ElevatedButton.icon(
-                onPressed: () async {
-                  await Alarm.stop(alarm.id);
-                  if (Get.isDialogOpen == true) Get.back();
-                },
-                icon: const Icon(Icons.alarm_off_rounded),
-                label: const Text(
-                  'Stop Alarm',
-                  style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700),
-                ),
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: const Color(0xFF6366F1),
-                  foregroundColor: Colors.white,
-                  padding: const EdgeInsets.symmetric(vertical: 14),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(14),
-                  ),
-                ),
-              ),
-            ),
-            const SizedBox(height: 10),
-            // Snooze button
-            SizedBox(
-              width: double.infinity,
-              child: OutlinedButton.icon(
-                onPressed: () async {
-                  await Alarm.stop(alarm.id);
-                  // Schedule snooze using user's saved preference
-                  final snoozeTime = DateTime.now()
-                      .add(Duration(minutes: snoozeMinutes));
-                  await Alarm.set(
-                    alarmSettings: AlarmSettings(
-                      id: alarm.id,
-                      dateTime: snoozeTime,
-                      assetAudioPath: alarm.assetAudioPath,
-                      loopAudio: false, // don't loop on snooze
-                      vibrate: alarm.vibrate,
-                      volumeSettings: VolumeSettings.fade(
-                        volume: 0.7,
-                        fadeDuration: const Duration(seconds: 2),
-                      ),
-                      warningNotificationOnKill:
-                          alarm.warningNotificationOnKill,
-                      androidFullScreenIntent: false,
-                      notificationSettings: NotificationSettings(
-                        title: '⏱️ Snoozed — ${alarm.notificationSettings.title}',
-                        body: 'Reminder in $snoozeMinutes minutes',
-                        stopButton: 'Cancel Snooze',
-                        icon: 'notification_icon',
-                      ),
-                    ),
-                  );
-                  if (Get.isDialogOpen == true) Get.back();
-                  debugPrint(
-                      '⏱️ Alarm ${alarm.id} snoozed $snoozeMinutes minutes');
-                },
-                icon: const Icon(Icons.snooze_rounded),
-                label: Text(
-                  'Snooze $snoozeMinutes min',
-                  style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w600),
-                ),
-                style: OutlinedButton.styleFrom(
-                  foregroundColor: Colors.white60,
-                  side: const BorderSide(color: Colors.white24),
-                  padding: const EdgeInsets.symmetric(vertical: 12),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(14),
-                  ),
-                ),
-              ),
-            ),
-          ],
-        ),
-      ),
-    ),
-    barrierDismissible: false,
-    barrierColor: Colors.black87,
-  );
 }

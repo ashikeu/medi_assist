@@ -1,9 +1,14 @@
+import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:get_storage/get_storage.dart';
 import '../../models/medicine_model.dart';
 import '../../models/meal_model.dart';
 import '../../models/medical_record_model.dart';
 import '../../models/activity_model.dart';
+import '../../models/alarm_sound_model.dart';
+import '../../models/prayer_location_model.dart';
+import '../../models/prayer_reminder_model.dart';
+import '../../models/prayer_settings_model.dart';
 import '../constants/app_constants.dart';
 
 /// StorageService uses TWO separate GetStorage boxes:
@@ -203,6 +208,106 @@ class StorageService extends GetxService {
   }
 
   // ════════════════════════════════════════════════════════════════
+  // ─── PRAYER REMINDERS ────────────────────────────────────────────
+  // ════════════════════════════════════════════════════════════════
+  //
+  // Reminders and custom prayer entries are user *data* and live in the data
+  // box. The location and calculation settings they depend on are settings and
+  // live in the settings box — see further down.
+
+  List<PrayerReminder> getPrayerReminders() {
+    try {
+      final data = _dataBox.read<List>(AppConstants.prayerRemindersKey);
+      if (data == null) return [];
+      return data
+          .map((e) =>
+              PrayerReminder.fromJson(Map<String, dynamic>.from(e as Map)))
+          .toList();
+    } catch (e) {
+      debugPrint('Error getting prayer reminders: $e');
+      return [];
+    }
+  }
+
+  List<PrayerReminder> getPrayerRemindersFor(String prayerId) =>
+      getPrayerReminders().where((r) => r.prayerId == prayerId).toList()
+        ..sort((a, b) => a.offsetMinutes.compareTo(b.offsetMinutes));
+
+  Future<void> savePrayerReminders(List<PrayerReminder> reminders) async {
+    await _dataBox.write(
+      AppConstants.prayerRemindersKey,
+      reminders.map((e) => e.toJson()).toList(),
+    );
+  }
+
+  Future<void> addPrayerReminder(PrayerReminder reminder) async {
+    final list = getPrayerReminders()..add(reminder);
+    await savePrayerReminders(list);
+  }
+
+  Future<void> updatePrayerReminder(PrayerReminder reminder) async {
+    final list = getPrayerReminders();
+    final idx = list.indexWhere((e) => e.id == reminder.id);
+    if (idx != -1) {
+      list[idx] = reminder;
+      await savePrayerReminders(list);
+    }
+  }
+
+  Future<void> deletePrayerReminder(String id) async {
+    final list = getPrayerReminders()..removeWhere((e) => e.id == id);
+    await savePrayerReminders(list);
+  }
+
+  // ─── Custom prayer entries ────────────────────────────────────────────────
+
+  List<CustomPrayerEvent> getCustomPrayers() {
+    try {
+      final data = _dataBox.read<List>(AppConstants.customPrayersKey);
+      if (data == null) return [];
+      return data
+          .map((e) =>
+              CustomPrayerEvent.fromJson(Map<String, dynamic>.from(e as Map)))
+          .toList();
+    } catch (e) {
+      debugPrint('Error getting custom prayers: $e');
+      return [];
+    }
+  }
+
+  Future<void> saveCustomPrayers(List<CustomPrayerEvent> events) async {
+    await _dataBox.write(
+      AppConstants.customPrayersKey,
+      events.map((e) => e.toJson()).toList(),
+    );
+  }
+
+  Future<void> addCustomPrayer(CustomPrayerEvent event) async {
+    final list = getCustomPrayers()..add(event);
+    await saveCustomPrayers(list);
+  }
+
+  Future<void> updateCustomPrayer(CustomPrayerEvent event) async {
+    final list = getCustomPrayers();
+    final idx = list.indexWhere((e) => e.id == event.id);
+    if (idx != -1) {
+      list[idx] = event;
+      await saveCustomPrayers(list);
+    }
+  }
+
+  /// Removes a custom entry along with every reminder attached to it —
+  /// otherwise those reminders would keep firing for something the user can no
+  /// longer see or edit.
+  Future<void> deleteCustomPrayer(String id) async {
+    final list = getCustomPrayers()..removeWhere((e) => e.id == id);
+    await saveCustomPrayers(list);
+    final reminders = getPrayerReminders()
+      ..removeWhere((r) => r.prayerId == id);
+    await savePrayerReminders(reminders);
+  }
+
+  // ════════════════════════════════════════════════════════════════
   // ─── CLEAR USER DATA ONLY (settings are preserved) ────────────────
   // ════════════════════════════════════════════════════════════════
 
@@ -213,6 +318,8 @@ class StorageService extends GetxService {
     await _dataBox.remove(AppConstants.mealsKey);
     await _dataBox.remove(AppConstants.medicalRecordsKey);
     await _dataBox.remove(AppConstants.activitiesKey);
+    await _dataBox.remove(AppConstants.prayerRemindersKey);
+    await _dataBox.remove(AppConstants.customPrayersKey);
   }
 
   // ════════════════════════════════════════════════════════════════
@@ -226,17 +333,6 @@ class StorageService extends GetxService {
 
   Future<void> setFirstLaunchDone() async {
     await _settingsBox.write(AppConstants.firstLaunchKey, false);
-  }
-
-  // ── Service enabled state ─────────────────────────────────────────────────
-  /// Whether the user has intentionally enabled the background service.
-  /// Defaults to true — service runs by default on first install.
-  bool get isServiceEnabled {
-    return _settingsBox.read<bool>(AppConstants.serviceEnabledKey) ?? true;
-  }
-
-  Future<void> setServiceEnabled(bool value) async {
-    await _settingsBox.write(AppConstants.serviceEnabledKey, value);
   }
 
   // ── Permission asked ──────────────────────────────────────────────────────
@@ -267,6 +363,117 @@ class StorageService extends GetxService {
 
   Future<void> setThemeMode(String mode) async {
     await _settingsBox.write(AppConstants.themeKey, mode);
+  }
+
+  // ── Language ──────────────────────────────────────────────────────────────
+  /// Language tag of the chosen UI language, e.g. `en_US` or `bn_BD`.
+  ///
+  /// Lives in the settings box, so "Clear All Data" leaves the user's choice
+  /// alone. `null` means the user has never picked one.
+  String? get languageTag {
+    return _settingsBox.read<String>(AppConstants.languageKey);
+  }
+
+  Future<void> setLanguageTag(String tag) async {
+    await _settingsBox.write(AppConstants.languageKey, tag);
+  }
+
+  // ── Prayer location & calculation settings ────────────────────────────────
+  /// The location prayer times are calculated for, or `null` if the user has
+  /// never chosen one.
+  ///
+  /// Settings box, deliberately: "Clear All Data" removes the user's reminders
+  /// but should not send the prayer screen back to a fallback city, the same
+  /// reasoning that keeps the language choice out of the data box.
+  PrayerLocation? get prayerLocation {
+    try {
+      final raw = _settingsBox.read(AppConstants.prayerLocationKey);
+      if (raw is! Map) return null;
+      return PrayerLocation.fromJson(Map<String, dynamic>.from(raw));
+    } catch (e) {
+      debugPrint('Error reading prayer location: $e');
+      return null;
+    }
+  }
+
+  Future<void> savePrayerLocation(PrayerLocation location) async {
+    await _settingsBox.write(
+        AppConstants.prayerLocationKey, location.toJson());
+  }
+
+  /// Calculation method, madhab, angles and manual adjustments. Defaults on a
+  /// fresh install rather than being nullable — there is always *some* method
+  /// in force.
+  PrayerSettings get prayerSettings {
+    try {
+      final raw = _settingsBox.read(AppConstants.prayerSettingsKey);
+      if (raw is! Map) return const PrayerSettings();
+      return PrayerSettings.fromJson(Map<String, dynamic>.from(raw));
+    } catch (e) {
+      debugPrint('Error reading prayer settings: $e');
+      return const PrayerSettings();
+    }
+  }
+
+  Future<void> savePrayerSettings(PrayerSettings settings) async {
+    await _settingsBox.write(
+        AppConstants.prayerSettingsKey, settings.toJson());
+  }
+
+  /// Whether the prayer module is shown on the dashboard and its reminders are
+  /// scheduled. On by default — a user who does not want it turns it off once.
+  bool get isPrayerModuleEnabled =>
+      _settingsBox.read<bool>(AppConstants.prayerEnabledKey) ?? true;
+
+  Future<void> setPrayerModuleEnabled(bool enabled) async {
+    await _settingsBox.write(AppConstants.prayerEnabledKey, enabled);
+  }
+
+  /// How many reminder slots the last scheduling run used. See
+  /// [AppConstants.prayerSlotCountKey].
+  int get prayerSlotCount =>
+      _settingsBox.read<int>(AppConstants.prayerSlotCountKey) ?? 0;
+
+  Future<void> setPrayerSlotCount(int count) async {
+    await _settingsBox.write(AppConstants.prayerSlotCountKey, count);
+  }
+
+  // ── Alarm sound ───────────────────────────────────────────────────────────
+  /// The sound every alarm uses unless the reminder names its own.
+  ///
+  /// Settings box: it is a preference about this device (and points at a file
+  /// in this device's storage), so "Clear All Data" leaves it alone.
+  AlarmSound get defaultAlarmSound {
+    final stored =
+        AlarmSound.tryFromJson(_settingsBox.read(AppConstants.alarmSoundKey));
+    return stored ?? AlarmSound.appDefault;
+  }
+
+  Future<void> setDefaultAlarmSound(AlarmSound sound) async {
+    await _settingsBox.write(AppConstants.alarmSoundKey, sound.toJson());
+  }
+
+  /// Sounds the user has imported, most recent first.
+  List<AlarmSound> get alarmSoundLibrary {
+    try {
+      final data = _settingsBox.read<List>(AppConstants.alarmSoundLibraryKey);
+      if (data == null) return [];
+      return data
+          .map(AlarmSound.tryFromJson)
+          .whereType<AlarmSound>()
+          .where((s) => s.isCustom)
+          .toList();
+    } catch (e) {
+      debugPrint('Error reading alarm sound library: $e');
+      return [];
+    }
+  }
+
+  Future<void> saveAlarmSoundLibrary(List<AlarmSound> sounds) async {
+    await _settingsBox.write(
+      AppConstants.alarmSoundLibraryKey,
+      sounds.map((s) => s.toJson()).toList(),
+    );
   }
 
   // ── Pending notification route ────────────────────────────────────────────

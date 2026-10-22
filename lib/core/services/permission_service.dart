@@ -1,6 +1,5 @@
 import 'dart:io';
 import 'package:flutter/material.dart';
-import 'package:flutter_foreground_task/flutter_foreground_task.dart';
 import 'package:get/get.dart';
 import 'package:permission_handler/permission_handler.dart' as ph;
 import '../constants/app_colors.dart';
@@ -14,9 +13,6 @@ class PermissionService extends GetxService {
     await requestNotificationPermission();
     await requestExactAlarmPermission();
     await requestBatteryOptimizationPermission();
-    if (Platform.isAndroid) {
-      await requestSystemAlertWindowPermission();
-    }
   }
 
   // ─── Notification permission ──────────────────────────────────────────────────
@@ -37,12 +33,10 @@ class PermissionService extends GetxService {
   Future<bool> requestExactAlarmPermission() async {
     if (!Platform.isAndroid) return true;
     try {
-      final canSchedule = await FlutterForegroundTask.canScheduleExactAlarms;
-      if (canSchedule) return true;
-      await FlutterForegroundTask.openAlarmsAndRemindersSettings();
-      return false;
+      if (await canScheduleExactAlarms) return true;
+      return await NotificationService.to.requestExactAlarmPermission();
     } catch (e) {
-      debugPrint('⚠️ Exact alarm permission check failed: $e');
+      debugPrint('⚠️ Exact alarm permission request failed: $e');
       return false;
     }
   }
@@ -50,7 +44,7 @@ class PermissionService extends GetxService {
   Future<bool> get canScheduleExactAlarms async {
     if (!Platform.isAndroid) return true;
     try {
-      return await FlutterForegroundTask.canScheduleExactAlarms;
+      return await NotificationService.to.canScheduleExactAlarms();
     } catch (_) {
       return false;
     }
@@ -60,11 +54,9 @@ class PermissionService extends GetxService {
   Future<bool> requestBatteryOptimizationPermission() async {
     if (!Platform.isAndroid) return true;
     try {
-      final isIgnoring =
-          await FlutterForegroundTask.isIgnoringBatteryOptimizations;
-      if (isIgnoring) return true;
+      if (await isBatteryOptimizationIgnored) return true;
       await _showBatteryOptimizationDialog();
-      return false;
+      return await isBatteryOptimizationIgnored;
     } catch (e) {
       debugPrint('⚠️ Battery optimization check failed: $e');
       return false;
@@ -74,7 +66,7 @@ class PermissionService extends GetxService {
   Future<bool> get isBatteryOptimizationIgnored async {
     if (!Platform.isAndroid) return true;
     try {
-      return await FlutterForegroundTask.isIgnoringBatteryOptimizations;
+      return await ph.Permission.ignoreBatteryOptimizations.isGranted;
     } catch (_) {
       return false;
     }
@@ -102,14 +94,14 @@ class PermissionService extends GetxService {
               ),
             ),
             const SizedBox(height: 16),
-            const Text(
-              'Disable Battery Optimization',
+            Text(
+              'battery_dialog_title'.tr,
               style: TextStyle(fontSize: 18, fontWeight: FontWeight.w700),
               textAlign: TextAlign.center,
             ),
             const SizedBox(height: 8),
             Text(
-              'For MediAssist to deliver reminders on time — even when your phone is idle — please disable battery optimization for this app.',
+              'battery_dialog_message'.tr,
               style: TextStyle(
                 fontSize: 14,
                 color: Colors.grey.shade600,
@@ -123,14 +115,14 @@ class PermissionService extends GetxService {
                 Expanded(
                   child: OutlinedButton(
                     onPressed: () => Get.back(result: false),
-                    child: const Text('Skip'),
+                    child: Text('skip'.tr),
                   ),
                 ),
                 const SizedBox(width: 12),
                 Expanded(
                   child: ElevatedButton(
                     onPressed: () => Get.back(result: true),
-                    child: const Text('Open Settings'),
+                    child: Text('open_settings'.tr),
                   ),
                 ),
               ],
@@ -141,21 +133,7 @@ class PermissionService extends GetxService {
       barrierDismissible: false,
     );
     if (result == true) {
-      await FlutterForegroundTask.openIgnoreBatteryOptimizationSettings();
-    }
-  }
-
-  // ─── System alert window ──────────────────────────────────────────────────────
-  Future<bool> requestSystemAlertWindowPermission() async {
-    if (!Platform.isAndroid) return true;
-    try {
-      final canDraw = await FlutterForegroundTask.canDrawOverlays;
-      if (canDraw) return true;
-      final status = await ph.Permission.systemAlertWindow.request();
-      return status.isGranted;
-    } catch (e) {
-      debugPrint('⚠️ System alert window check failed: $e');
-      return false;
+      await ph.Permission.ignoreBatteryOptimizations.request();
     }
   }
 

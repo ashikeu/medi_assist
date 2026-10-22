@@ -1,11 +1,17 @@
 import 'package:flutter/material.dart';
 
+import 'alarm_sound_model.dart';
+
 class Meal {
   final String id;
   final String name;
   final TimeOfDay time;
   final String notificationType; // 'notification', 'alarm', 'both', 'none'
   final bool isActive;
+  /// The sound this reminder's alarm plays, or `null` to follow the app-wide
+  /// default. Only meaningful for alarm-type reminders: a notification's sound
+  /// is a property of its Android channel, not of the notification.
+  final AlarmSound? alarmSound;
   final DateTime createdAt;
 
   Meal({
@@ -14,6 +20,7 @@ class Meal {
     required this.time,
     required this.notificationType,
     this.isActive = true,
+    this.alarmSound,
     DateTime? createdAt,
   }) : createdAt = createdAt ?? DateTime.now();
 
@@ -24,6 +31,8 @@ class Meal {
     TimeOfDay? time,
     String? notificationType,
     bool? isActive,
+    AlarmSound? alarmSound,
+    bool clearAlarmSound = false,
     DateTime? createdAt,
   }) {
     return Meal(
@@ -32,6 +41,8 @@ class Meal {
       time: time ?? this.time,
       notificationType: notificationType ?? this.notificationType,
       isActive: isActive ?? this.isActive,
+      alarmSound:
+          clearAlarmSound ? null : (alarmSound ?? this.alarmSound),
       createdAt: createdAt ?? this.createdAt,
     );
   }
@@ -44,6 +55,7 @@ class Meal {
       'time': {'hour': time.hour, 'minute': time.minute},
       'notificationType': notificationType,
       'isActive': isActive,
+      'alarmSound': alarmSound?.toJson(),
       'createdAt': createdAt.toIso8601String(),
     };
   }
@@ -59,6 +71,9 @@ class Meal {
       ),
       notificationType: json['notificationType'] as String,
       isActive: json['isActive'] as bool? ?? true,
+      // Absent in anything saved before per-reminder sounds existed, which
+      // reads as "follow the default" — exactly the right migration.
+      alarmSound: AlarmSound.tryFromJson(json['alarmSound']),
       createdAt: json['createdAt'] != null
           ? DateTime.parse(json['createdAt'] as String)
           : DateTime.now(),

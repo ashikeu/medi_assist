@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
+import 'package:medi_assist/core/widgets/alarm_sound_picker.dart';
 import 'package:medi_assist/core/constants/app_colors.dart';
 import 'package:medi_assist/core/utils/time_utils.dart';
 import 'package:medi_assist/core/widgets/notif_type_selector.dart';
@@ -28,29 +29,29 @@ class AddEditMealView extends StatelessWidget {
               _buildHeaderCard(isEditing),
               const SizedBox(height: 24),
 
-              _buildSectionLabel('Meal Name', Icons.restaurant_rounded),
+              _buildSectionLabel('meal_name'.tr, Icons.restaurant_rounded),
               const SizedBox(height: 10),
               _buildNameField(controller, isDark),
               const SizedBox(height: 24),
 
-              _buildSectionLabel('Meal Time', Icons.access_time_rounded),
+              _buildSectionLabel('meal_time'.tr, Icons.access_time_rounded),
               const SizedBox(height: 4),
-              Text('Set your daily meal reminder time',
+              Text('meal_set_time'.tr,
                   style: TextStyle(
                       fontSize: 12, color: Colors.grey.shade500)),
               const SizedBox(height: 12),
               _buildTimePickerCard(controller, context, isDark),
               const SizedBox(height: 24),
 
-              _buildSectionLabel('Quick Presets', Icons.bolt_rounded),
+              _buildSectionLabel('quick_presets'.tr, Icons.bolt_rounded),
               const SizedBox(height: 10),
               _buildQuickPresets(controller),
               const SizedBox(height: 24),
 
               _buildSectionLabel(
-                  'Reminder Type', Icons.notifications_rounded),
+                  'reminder_type'.tr, Icons.notifications_rounded),
               const SizedBox(height: 4),
-              Text('How would you like to be reminded?',
+              Text('notif_type_question'.tr,
                   style: TextStyle(
                       fontSize: 12, color: Colors.grey.shade500)),
               const SizedBox(height: 12),
@@ -60,6 +61,21 @@ class AddEditMealView extends StatelessWidget {
                 selectedNotifType: controller.selectedNotifType,
                 onChanged: controller.setNotifType,
                 isDark: isDark,
+              ),
+              const SizedBox(height: 24),
+
+              _buildSectionLabel('alarm_sound'.tr, Icons.music_note_rounded),
+              const SizedBox(height: 4),
+              Text('alarm_sound_form_hint'.tr,
+                  style: TextStyle(
+                      fontSize: 12, color: Colors.grey.shade500)),
+              const SizedBox(height: 12),
+              AlarmSoundRow(
+                selected: controller.selectedAlarmSound,
+                onChanged: (sound) =>
+                    controller.selectedAlarmSound.value = sound,
+                isDark: isDark,
+                accent: AppColors.mealColor,
               ),
               const SizedBox(height: 24),
 
@@ -94,7 +110,7 @@ class AddEditMealView extends StatelessWidget {
         ),
       ),
       title: Text(
-        isEditing ? 'Edit Meal' : 'Add Meal',
+        isEditing ? 'meal_edit'.tr : 'meal_add'.tr,
         style: const TextStyle(
             fontSize: 18, fontWeight: FontWeight.w700, letterSpacing: -0.3),
       ),
@@ -126,7 +142,7 @@ class AddEditMealView extends StatelessWidget {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  isEditing ? 'Update Meal' : 'New Meal Reminder',
+                  isEditing ? 'meal_update_button'.tr : 'meal_new_reminder'.tr,
                   style: const TextStyle(
                       color: Colors.white,
                       fontSize: 16,
@@ -135,8 +151,8 @@ class AddEditMealView extends StatelessWidget {
                 const SizedBox(height: 3),
                 Text(
                   isEditing
-                      ? 'Modify meal details and save'
-                      : 'Never miss your meals again',
+                      ? 'meal_modify_details'.tr
+                      : 'meal_subtitle'.tr,
                   style: TextStyle(
                       color: Colors.white.withOpacity(0.8), fontSize: 12),
                 ),
@@ -165,7 +181,7 @@ class AddEditMealView extends StatelessWidget {
       textCapitalization: TextCapitalization.words,
       style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w500),
       decoration: InputDecoration(
-        hintText: 'e.g. Breakfast, Lunch, Dinner...',
+        hintText: 'meal_name_hint'.tr,
         prefixIcon: const Icon(Icons.restaurant_outlined,
             color: AppColors.mealColor, size: 20),
         filled: true,
@@ -270,11 +286,11 @@ class AddEditMealView extends StatelessWidget {
   }
 
   String _getMealSuggestion(int hour) {
-    if (hour >= 5 && hour < 11) return '🌅 Good time for breakfast';
-    if (hour >= 11 && hour < 15) return '☀️ Lunchtime window';
-    if (hour >= 15 && hour < 18) return '☕ Afternoon snack time';
-    if (hour >= 18 && hour < 22) return '🌙 Dinner time';
-    return '🍽️ Meal reminder';
+    if (hour >= 5 && hour < 11) return 'meal_suggest_breakfast'.tr;
+    if (hour >= 11 && hour < 15) return 'meal_suggest_lunch'.tr;
+    if (hour >= 15 && hour < 18) return 'meal_suggest_snack'.tr;
+    if (hour >= 18 && hour < 22) return 'meal_suggest_dinner'.tr;
+    return 'meal_suggest_default'.tr;
   }
 
   Future<void> _pickTime(
@@ -295,10 +311,10 @@ class AddEditMealView extends StatelessWidget {
 
   Widget _buildQuickPresets(MealController controller) {
     final presets = [
-      ('🌅', 'Breakfast', const TimeOfDay(hour: 8, minute: 0)),
-      ('☀️', 'Lunch', const TimeOfDay(hour: 13, minute: 0)),
-      ('☕', 'Snack', const TimeOfDay(hour: 16, minute: 0)),
-      ('🌙', 'Dinner', const TimeOfDay(hour: 19, minute: 30)),
+      ('🌅', 'preset_breakfast'.tr, const TimeOfDay(hour: 8, minute: 0)),
+      ('☀️', 'preset_lunch'.tr, const TimeOfDay(hour: 13, minute: 0)),
+      ('☕', 'preset_snack'.tr, const TimeOfDay(hour: 16, minute: 0)),
+      ('🌙', 'preset_dinner'.tr, const TimeOfDay(hour: 19, minute: 30)),
     ];
     return Obx(() {
       // ✅ Extract Rx value in direct Obx scope before any lazy widget
@@ -398,13 +414,13 @@ class AddEditMealView extends StatelessWidget {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    const Text('Enable Reminders',
-                        style: TextStyle(
+                    Text('enable_reminders'.tr,
+                        style: const TextStyle(
                             fontSize: 14, fontWeight: FontWeight.w700)),
                     Text(
                       controller.isActive.value
-                          ? 'Meal reminders are active'
-                          : 'Meal reminders are paused',
+                          ? 'meal_reminders_active'.tr
+                          : 'meal_reminders_paused'.tr,
                       style: TextStyle(
                           fontSize: 12, color: Colors.grey.shade500),
                     ),
@@ -457,7 +473,7 @@ class AddEditMealView extends StatelessWidget {
                           size: 20),
                       const SizedBox(width: 10),
                       Text(
-                        isEditing ? 'Save Changes' : 'Add Meal',
+                        isEditing ? 'save_changes'.tr : 'meal_add'.tr,
                         style: const TextStyle(
                             fontSize: 16,
                             fontWeight: FontWeight.w700,

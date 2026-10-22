@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_slidable/flutter_slidable.dart';
 import 'package:get/get.dart';
+import 'package:medi_assist/core/localization/localized_digits.dart';
+import 'package:medi_assist/core/utils/time_utils.dart';
 import 'package:medi_assist/core/constants/app_colors.dart';
 import 'package:medi_assist/core/utils/app_utils.dart';
 import 'package:medi_assist/models/medicine_model.dart';
@@ -80,9 +82,9 @@ class MedicineListView extends StatelessWidget {
       title: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Text(
-            'Medicine Reminder',
-            style: TextStyle(
+          Text(
+            'notif_medicine_title'.tr,
+            style: const TextStyle(
               fontSize: 18,
               fontWeight: FontWeight.w700,
               letterSpacing: -0.3,
@@ -90,7 +92,12 @@ class MedicineListView extends StatelessWidget {
           ),
           Obx(
             () => Text(
-              '${controller.activeMedicinesCount} active reminder${controller.activeMedicinesCount != 1 ? 's' : ''}',
+              'dashboard_active_reminders'.trParams({
+                'count': controller.activeMedicinesCount.value.localizedDigits,
+                'noun': controller.activeMedicinesCount.value == 1
+                    ? 'reminder_singular'.tr
+                    : 'reminder_plural'.tr,
+              }),
               style: TextStyle(
                 fontSize: 12,
                 color: AppColors.medicineColor,
@@ -127,7 +134,7 @@ class MedicineListView extends StatelessWidget {
       child: TextField(
         onChanged: controller.setSearchQuery,
         decoration: InputDecoration(
-          hintText: 'Search medicines...',
+          hintText: 'medicine_search'.tr,
           prefixIcon: const Icon(
             Icons.search_rounded,
             color: AppColors.medicineColor,
@@ -216,8 +223,8 @@ class MedicineListView extends StatelessWidget {
             const SizedBox(height: 24),
             Text(
               controller.searchQuery.value.isNotEmpty
-                  ? 'No medicines found'
-                  : 'No medicines yet',
+                  ? 'medicine_not_found'.tr
+                  : 'medicine_empty_title'.tr,
               style: const TextStyle(
                 fontSize: 20,
                 fontWeight: FontWeight.w700,
@@ -227,8 +234,8 @@ class MedicineListView extends StatelessWidget {
             const SizedBox(height: 10),
             Text(
               controller.searchQuery.value.isNotEmpty
-                  ? 'Try a different search term'
-                  : 'Add your first medicine reminder\nand never miss a dose',
+                  ? 'try_different_search'.tr
+                  : 'medicine_empty_detail'.tr,
               style: TextStyle(
                 fontSize: 14,
                 color: Colors.grey.shade500,
@@ -244,7 +251,7 @@ class MedicineListView extends StatelessWidget {
                   Get.toNamed(Routes.addEditMedicine);
                 },
                 icon: const Icon(Icons.add_rounded),
-                label: const Text('Add Medicine'),
+                label: Text('medicine_add'.tr),
                 style: ElevatedButton.styleFrom(
                   backgroundColor: AppColors.medicineColor,
                   padding: const EdgeInsets.symmetric(
@@ -274,9 +281,9 @@ class MedicineListView extends StatelessWidget {
       foregroundColor: Colors.white,
       elevation: 4,
       icon: const Icon(Icons.add_rounded),
-      label: const Text(
-        'Add Medicine',
-        style: TextStyle(fontWeight: FontWeight.w600),
+      label: Text(
+        'medicine_add'.tr,
+        style: const TextStyle(fontWeight: FontWeight.w600),
       ),
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
     );
@@ -367,7 +374,7 @@ class _MedicineListItemState extends State<_MedicineListItem>
                   backgroundColor: AppColors.primary,
                   foregroundColor: Colors.white,
                   icon: Icons.edit_rounded,
-                  label: 'Edit',
+                  label: 'edit'.tr,
                   borderRadius: const BorderRadius.only(
                     topLeft: Radius.circular(14),
                     bottomLeft: Radius.circular(14),
@@ -381,7 +388,7 @@ class _MedicineListItemState extends State<_MedicineListItem>
                   backgroundColor: AppColors.danger,
                   foregroundColor: Colors.white,
                   icon: Icons.delete_rounded,
-                  label: 'Delete',
+                  label: 'delete'.tr,
                   borderRadius: const BorderRadius.only(
                     topRight: Radius.circular(14),
                     bottomRight: Radius.circular(14),
@@ -619,10 +626,8 @@ class _MedicineListItemState extends State<_MedicineListItem>
 
 // Extension for formatting single time inside widget
 extension _MedicineTimeFormat on Medicine {
-  String _formatSingleTime(TimeOfDay t) {
-    final h = t.hourOfPeriod == 0 ? 12 : t.hourOfPeriod;
-    final m = t.minute.toString().padLeft(2, '0');
-    final p = t.period == DayPeriod.am ? 'AM' : 'PM';
-    return '$h:$m $p';
-  }
+  // Delegates rather than formatting here: Bangla writes a clock time
+  // differently enough (day-part name first, Bengali digits) that a second
+  // copy of the arithmetic would quietly stay English.
+  String _formatSingleTime(TimeOfDay t) => TimeUtils.formatTimeOfDay(t);
 }

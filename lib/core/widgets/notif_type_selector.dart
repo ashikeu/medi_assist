@@ -19,33 +19,34 @@ class NotifTypeSelector extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    // Define types as a local list — computed once
-    const types = [
+    // Rebuilt every build rather than const, so the labels follow the
+    // language the user has selected.
+    final types = [
       (
         AppConstants.notifTypeNotification,
-        'Notification',
-        'Silent push alert',
+        'notif_type_notification'.tr,
+        'notif_type_notification_detail'.tr,
         Icons.notifications_outlined,
         AppColors.primary,
       ),
       (
         AppConstants.notifTypeAlarm,
-        'Alarm',
-        'Loud alarm with sound',
+        'notif_type_alarm'.tr,
+        'notif_type_alarm_detail'.tr,
         Icons.alarm_rounded,
         AppColors.warning,
       ),
       (
         AppConstants.notifTypeBoth,
-        'Both',
-        'Notification + Alarm',
+        'notif_type_both_short'.tr,
+        'notif_type_both'.tr,
         Icons.notifications_active_rounded,
         AppColors.secondary,
       ),
       (
         AppConstants.notifTypeNone,
-        'None',
-        'No reminder',
+        'notif_type_none'.tr,
+        'notif_type_none_detail'.tr,
         Icons.notifications_off_outlined,
         Colors.grey,
       ),

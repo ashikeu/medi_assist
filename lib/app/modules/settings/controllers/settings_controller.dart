@@ -1,26 +1,49 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 
-// ✅ FIXED: Relative imports from lib/app/modules/settings/controllers/
-import '../../../../core/services/foreground_service.dart';
+import '../../../../core/services/alarm_sound_service.dart';
 import '../../../../core/services/notification_service.dart';
 import '../../../../core/services/permission_service.dart';
+import '../../../../core/services/prayer_service.dart';
 import '../../../../core/services/reminder_scheduler.dart';
 import '../../../../core/services/storage_service.dart';
 import '../../../../core/services/backup_service.dart';
 import '../../../../core/utils/app_utils.dart';
 import '../../../../core/constants/app_constants.dart';
+import '../../../../core/localization/app_locales.dart';
+import '../../../../core/localization/localized_digits.dart';
+import '../../../../models/alarm_sound_model.dart';
+import '../../activity/controllers/activity_controller.dart';
+import '../../home/controllers/home_controller.dart';
+import '../../meal/controllers/meal_controller.dart';
+import '../../medical_records/controllers/medical_records_controller.dart';
+import '../../medicine/controllers/medicine_controller.dart';
 
 class SettingsController extends GetxController {
   static SettingsController get to => Get.find();
 
   // ─── Observable state ────────────────────────────────────────────────────────
-  final RxBool isServiceRunning      = false.obs;
   final RxBool isLoadingPermissions  = false.obs;
   final RxMap<String, bool> permissionStatus = <String, bool>{}.obs;
   final RxInt  pendingNotifCount     = 0.obs;
   // ✅ Persisted snooze preference
   final RxInt  snoozeMinutes         = AppConstants.defaultSnoozeMinutes.obs;
+
+  /// Language tag currently in effect, e.g. `bn_BD`.
+  ///
+  /// `Get.locale` is the real source of truth; this mirrors it so the picker
+  /// can repaint its tick the instant a row is tapped.
+  final RxString languageTag = AppLocales.fallback.tag.obs;
+
+  /// The prayer location, as the Settings row shows it. Mirrored into an
+  /// observable so the row updates the moment the user picks somewhere new
+  /// and comes back, without this screen having to be rebuilt from scratch.
+  final RxString prayerLocationLabel = ''.obs;
+
+  /// The app-wide default alarm sound, as an observable the picker row can
+  /// drive directly. It is never null here — this *is* the default, so it has
+  /// nothing to inherit from.
+  final Rx<AlarmSound?> defaultAlarmSound = Rx<AlarmSound?>(null);
 
   // ─── Lifecycle ───────────────────────────────────────────────────────────────
   @override
@@ -34,31 +57,71 @@ class SettingsController extends GetxController {
   // ✅ This ensures settings are NEVER reset — always loaded from persistent storage
   void _loadPersistedSettings() {
     snoozeMinutes.value = StorageService.to.snoozeMinutes;
+    languageTag.value = AppLocales.current.tag;
+    prayerLocationLabel.value = PrayerService.to.location.displayName;
+    defaultAlarmSound.value = AlarmSoundService.to.defaultSound;
     // Restore any other persisted settings here
   }
 
-  Future<void> _loadStatus() async {
-    isServiceRunning.value = await MediAssistForegroundService.isRunning;
-    await refreshPermissions();
-    await loadPendingNotifications();
+  // ─── Alarm sound ─────────────────────────────────────────────────────────────
+  /// Changes the sound every reminder that has not chosen its own will play.
+  ///
+  /// Already-scheduled alarms carry the old sound baked in — both in the OS
+  /// schedule and in the native re-arm mirror — so they have to be re-armed,
+  /// the same reason a language change reschedules everything.
+  Future<void> setDefaultAlarmSound(AlarmSound? sound) async {
+    final chosen = sound ?? AlarmSound.appDefault;
+    defaultAlarmSound.value = chosen;
+    await AlarmSoundService.to.setDefaultSound(chosen);
+    await ReminderScheduler.rescheduleAllFromStorage();
+    AppUtils.showSuccess(
+      'alarm_sound_default_changed'.trParams({'sound': chosen.displayLabel}),
+    );
   }
 
-  // ─── Foreground Service ──────────────────────────────────────────────────────
-  Future<void> toggleForegroundService() async {
-    if (isServiceRunning.value) {
-      await MediAssistForegroundService.stopService();
-      // ✅ Persist the user's intent to disable service
-      // So it won't auto-restart on next app open
-      await StorageService.to.setServiceEnabled(false);
-      AppUtils.showInfo('Background service stopped');
-    } else {
-      MediAssistForegroundService.initService();
-      await MediAssistForegroundService.startService();
-      // ✅ Persist the user's intent to enable service
-      await StorageService.to.setServiceEnabled(true);
-      AppUtils.showSuccess('Background service started');
-    }
-    isServiceRunning.value = await MediAssistForegroundService.isRunning;
+  @override
+  void onReady() {
+    super.onReady();
+    // The location screen is reached from here, so refresh the row's label
+    // when this screen becomes visible again.
+    ever<int>(PrayerService.to.revision, (_) {
+      prayerLocationLabel.value = PrayerService.to.location.displayName;
+    });
+  }
+
+  // ─── Language ────────────────────────────────────────────────────────────────
+  /// Switches the app's language and persists the choice.
+  ///
+  /// Takes effect immediately: `AppLocales.change` calls `Get.updateLocale`,
+  /// which rebuilds every screen, so there is nothing for the user to restart.
+  Future<void> changeLanguage(AppLanguage language) async {
+    if (languageTag.value == language.tag) return;
+
+    await AppLocales.change(language);
+    languageTag.value = language.tag;
+
+    // The screens repaint themselves, but two things live outside the widget
+    // tree and would otherwise stay in the old language indefinitely:
+    //
+    //  * the Android notification channels, whose names and descriptions the
+    //    user sees in system Settings;
+    //  * every already-scheduled reminder, whose title and body were baked in
+    //    when it was scheduled — including the copy mirrored to the native
+    //    re-arm store, which is what keeps alarms repeating while the app is
+    //    closed.
+    await NotificationService.refreshChannels();
+    await ReminderScheduler.rescheduleAllFromStorage();
+
+    // Read after the switch, so the confirmation itself is already in the new
+    // language — the first proof to the user that it worked.
+    AppUtils.showSuccess(
+      'settings_language_changed'.trParams({'language': language.name}),
+    );
+  }
+
+  Future<void> _loadStatus() async {
+    await refreshPermissions();
+    await loadPendingNotifications();
   }
 
   // ─── Permissions ─────────────────────────────────────────────────────────────
@@ -93,46 +156,20 @@ class SettingsController extends GetxController {
     snoozeMinutes.value = minutes;
     // ✅ Persist immediately — won't reset on app restart
     await StorageService.to.setSnoozeMinutes(minutes);
-    AppUtils.showSuccess('Snooze duration set to $minutes minutes');
+    AppUtils.showSuccess('settings_snooze_duration'.trParams({'minutes': minutes.localizedDigits}));
   }
 
   // ─── Test notification ────────────────────────────────────────────────────────
   Future<void> sendTestNotification() async {
     await NotificationService.to.showImmediateNotification(
       id: 9999,
-      title: '🔔 Test Notification',
-      body: 'MediAssist notifications are working correctly!',
+      title: '🔔 ${'settings_test_notification_title'.tr}',
+      body: 'settings_test_notification_body'.tr,
       channelId: AppConstants.medicineChannelId,
       channelName: AppConstants.medicineChannelName,
       payload: 'test',
     );
-    AppUtils.showSuccess('Test notification sent! Check your notification shade.');
-  }
-
-  // ─── Test alarm ───────────────────────────────────────────────────────────────
-  Future<void> sendTestAlarm() async {
-    try {
-      // Schedule alarm 10 seconds from now
-      final testTime = DateTime.now().add(const Duration(seconds: 10));
-
-      // Use AlarmService through ReminderScheduler-compatible approach
-      // We import alarm directly here for the test
-      AppUtils.showInfo(
-        'Test alarm set for 10 seconds from now!',
-        title: '⏰ Test Alarm',
-      );
-
-      // This uses the alarm package directly for the test
-      final alarm = await _scheduleTestAlarm(testTime);
-      debugPrint('Test alarm scheduled: $alarm');
-    } catch (e) {
-      AppUtils.showError('Failed to set test alarm: $e');
-    }
-  }
-
-  Future<bool> _scheduleTestAlarm(DateTime time) async {
-    // Import at the top of file if needed — isolated to this method
-    return true;
+    AppUtils.showSuccess('settings_test_notification_sent'.tr);
   }
 
   // ─── Pending notifications ────────────────────────────────────────────────────
@@ -158,20 +195,19 @@ class SettingsController extends GetxController {
       await StorageService.to.setLastRescheduleDate(DateTime.now());
 
       await loadPendingNotifications();
-      AppUtils.showSuccess('All reminders rescheduled successfully');
+      AppUtils.showSuccess('settings_reschedule_success'.tr);
     } catch (e) {
-      AppUtils.showError('Failed to reschedule reminders');
+      AppUtils.showError('settings_reschedule_failed'.tr);
     }
   }
 
   // ─── Clear all data ───────────────────────────────────────────────────────────
   Future<void> clearAllData() async {
     final confirmed = await AppUtils.showConfirmDialog(
-      title: 'Clear All Data',
-      message:
-          'This will delete ALL medicines, meals, activities and medical records.\n\nSettings and preferences will be preserved.',
-      confirmText: 'Clear Data',
-      cancelText: 'Cancel',
+      title: 'settings_clear_data'.tr,
+      message: 'settings_clear_data_message'.tr,
+      confirmText: 'settings_clear_data_button'.tr,
+      cancelText: 'cancel'.tr,
       confirmColor: Colors.red,
       icon: Icons.warning_amber_rounded,
     );
@@ -179,40 +215,72 @@ class SettingsController extends GetxController {
     if (!confirmed) return;
 
     try {
-      // Cancel all scheduled notifications and alarms
-      await NotificationService.to.cancelAll();
+      // Must cancel alarms too, not just notifications. The entities are about
+      // to be deleted, so anything left scheduled would keep ringing daily with
+      // no UI left to turn it off.
+      await ReminderScheduler.cancelEverything();
 
-      // ✅ FIXED: clearAllData() only clears user data, NOT settings
+      // ✅ clearAllData() only clears user data, NOT settings
       await StorageService.to.clearAllData();
 
+      await loadPendingNotifications();
       AppUtils.showSuccess(
-        'All health data cleared. Settings preserved.',
-        title: 'Data Cleared',
+        'settings_data_cleared_detail'.tr,
+        title: 'settings_data_cleared'.tr,
       );
     } catch (e) {
-      AppUtils.showError('Failed to clear data');
+      AppUtils.showError('settings_clear_data_failed'.tr);
     }
   }
 
   // ─── Export Backup ────────────────────────────────────────────────────────────
   Future<void> exportBackup() async {
-    final success = await BackupService.to.exportData();
-    if (success) {
-      AppUtils.showSuccess('Backup exported successfully!');
-    } else {
-      AppUtils.showError('Failed to export backup');
+    final result = await BackupService.to.exportData();
+    switch (result) {
+      case BackupResult.success:
+        AppUtils.showSuccess('settings_export_success'.tr);
+      case BackupResult.cancelled:
+        break;
+      case BackupResult.failed:
+        AppUtils.showError('settings_export_failed'.tr);
     }
   }
 
   // ─── Import Backup ────────────────────────────────────────────────────────────
   Future<void> importBackup() async {
-    final success = await BackupService.to.importData();
-    if (success) {
-      AppUtils.showSuccess('Backup imported successfully! Please restart the app.');
-      // Optionally reload data
-      Get.back(); // Close settings
-    } else {
-      AppUtils.showError('Import cancelled or failed');
+    final result = await BackupService.to.importData();
+    switch (result) {
+      case BackupResult.success:
+        _reloadLiveControllers();
+        await loadPendingNotifications();
+        AppUtils.showSuccess(
+          'settings_import_success'.tr,
+          title: 'settings_import_complete'.tr,
+        );
+      case BackupResult.cancelled:
+        break;
+      case BackupResult.failed:
+        AppUtils.showError('settings_import_failed'.tr);
+    }
+  }
+
+  /// Refreshes whichever list controllers are currently alive so restored data
+  /// shows immediately, instead of telling the user to restart the app.
+  void _reloadLiveControllers() {
+    if (Get.isRegistered<MedicineController>()) {
+      MedicineController.to.loadMedicines();
+    }
+    if (Get.isRegistered<MealController>()) {
+      MealController.to.loadMeals();
+    }
+    if (Get.isRegistered<ActivityController>()) {
+      ActivityController.to.loadActivities();
+    }
+    if (Get.isRegistered<MedicalRecordsController>()) {
+      MedicalRecordsController.to.loadAllRecords();
+    }
+    if (Get.isRegistered<HomeController>()) {
+      HomeController.to.refreshCounts();
     }
   }
 }

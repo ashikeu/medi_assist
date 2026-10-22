@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 
+import '../../controllers/home_controller.dart';
+
 class ModuleCard extends StatefulWidget {
   final String title;
   final String subtitle;
@@ -90,9 +92,14 @@ class _ModuleCardState extends State<ModuleCard>
       },
       child: GestureDetector(
         onTapDown: (_) => setState(() => _isPressed = true),
-        onTapUp: (_) {
+        onTapUp: (_) async {
           setState(() => _isPressed = false);
-          Get.toNamed(widget.route);
+          await Get.toNamed(widget.route);
+          // The dashboard counters are read once on init, so without this a
+          // medicine added on the next screen leaves a stale count behind.
+          if (Get.isRegistered<HomeController>()) {
+            HomeController.to.refreshCounts();
+          }
         },
         onTapCancel: () => setState(() => _isPressed = false),
         child: AnimatedScale(
@@ -183,6 +190,8 @@ class _ModuleCardState extends State<ModuleCard>
                       // Title
                       Text(
                         widget.title,
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis,
                         style: const TextStyle(
                           color: Colors.white,
                           fontSize: 14,

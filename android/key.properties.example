@@ -1,0 +1,16 @@
+# Copy to android/key.properties and fill in. That file is git-ignored —
+# never commit it, and never commit the .jks keystore itself.
+#
+# Generate the keystore once (JDK 17's keytool), then keep it backed up
+# somewhere safe. Losing it means you can never update the app on Play again:
+#
+#   keytool -genkey -v -keystore %USERPROFILE%\mediassist-upload.jks \
+#     -storetype JKS -keyalg RSA -keysize 2048 -validity 10000 -alias upload
+#
+# storeFile is resolved relative to the android/ directory, so an absolute path
+# is usually clearest. Use forward slashes even on Windows.
+
+storePassword=your-keystore-password
+keyPassword=your-key-password
+keyAlias=upload
+storeFile=C:/Users/you/mediassist-upload.jks

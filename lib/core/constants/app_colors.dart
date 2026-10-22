@@ -27,11 +27,13 @@ class AppColors {
   static const Color mealColor = Color(0xFFEC4899);         // Pink
   static const Color medicalColor = Color(0xFF14B8A6);      // Teal
   static const Color activityColor = Color(0xFFF59E0B);     // Amber
+  static const Color prayerColor = Color(0xFF0EA5E9);       // Sky
 
   static const Color medicineColorLight = Color(0xFFEEF2FF);
   static const Color mealColorLight = Color(0xFFFDF2F8);
   static const Color medicalColorLight = Color(0xFFF0FDFA);
   static const Color activityColorLight = Color(0xFFFFFBEB);
+  static const Color prayerColorLight = Color(0xFFF0F9FF);
 
   // ─── Light Theme ────────────────────────────────────────────────────────────
   static const Color lightBackground = Color(0xFFF8FAFC);
@@ -82,6 +84,12 @@ class AppColors {
 
   static const LinearGradient activityGradient = LinearGradient(
     colors: [Color(0xFFF59E0B), Color(0xFFF97316)],
+    begin: Alignment.topLeft,
+    end: Alignment.bottomRight,
+  );
+
+  static const LinearGradient prayerGradient = LinearGradient(
+    colors: [Color(0xFF0EA5E9), Color(0xFF0D9488)],
     begin: Alignment.topLeft,
     end: Alignment.bottomRight,
   );

@@ -5,6 +5,7 @@ import 'package:medi_assist/core/services/reminder_scheduler.dart';
 import 'package:medi_assist/core/services/storage_service.dart';
 import 'package:medi_assist/core/utils/app_utils.dart';
 import 'package:medi_assist/core/utils/id_generator.dart';
+import 'package:medi_assist/models/alarm_sound_model.dart';
 import 'package:medi_assist/models/meal_model.dart';
 
 
@@ -20,6 +21,11 @@ class MealController extends GetxController {
   final nameController = TextEditingController();
   final Rx<TimeOfDay> selectedTime = const TimeOfDay(hour: 8, minute: 0).obs;
   final RxString selectedNotifType = AppConstants.notifTypeNotification.obs;
+
+  /// The alarm sound for the item being edited. `null` means the reminder
+  /// follows the app-wide default, which is what an untouched form leaves it
+  /// as.
+  final Rx<AlarmSound?> selectedAlarmSound = Rx<AlarmSound?>(null);
   final RxBool isActive = true.obs;
   Meal? editingMeal;
 
@@ -54,7 +60,7 @@ class MealController extends GetxController {
       meals.assignAll(data);
       _refreshCounts();
     } catch (e) {
-      AppUtils.showError('Failed to load meals');
+      AppUtils.showError('failed_load_meals'.tr);
     } finally {
       isLoading.value = false;
     }
@@ -70,16 +76,25 @@ class MealController extends GetxController {
         time: selectedTime.value,
         notificationType: selectedNotifType.value,
         isActive: isActive.value,
+        alarmSound: selectedAlarmSound.value,
       );
       await StorageService.to.addMeal(meal);
       meals.add(meal);
       _refreshCounts();
       if (meal.isActive) await ReminderScheduler.scheduleMeal(meal);
-      AppUtils.showSuccess('${meal.name} reminder added', title: 'Meal Added');
       _resetForm();
       Get.back();
+      AppUtils.showResultDialog(
+        success: true,
+        title: 'meal_added'.tr,
+        message: 'item_reminder_added'.trParams({'name': meal.name}),
+      );
     } catch (e) {
-      AppUtils.showError('Failed to add meal. Please try again.');
+      AppUtils.showResultDialog(
+        success: false,
+        title: 'save_failed'.tr,
+        message: 'failed_add_meal'.tr,
+      );
     } finally {
       isLoading.value = false;
     }
@@ -95,17 +110,27 @@ class MealController extends GetxController {
         time: selectedTime.value,
         notificationType: selectedNotifType.value,
         isActive: isActive.value,
+        alarmSound: selectedAlarmSound.value,
+        clearAlarmSound: selectedAlarmSound.value == null,
       );
       await StorageService.to.updateMeal(updated);
       final idx = meals.indexWhere((m) => m.id == updated.id);
       if (idx != -1) meals[idx] = updated;
       _refreshCounts();
       if (updated.isActive) await ReminderScheduler.scheduleMeal(updated);
-      AppUtils.showSuccess('${updated.name} updated', title: 'Meal Updated');
       _resetForm();
       Get.back();
+      AppUtils.showResultDialog(
+        success: true,
+        title: 'meal_updated'.tr,
+        message: 'item_updated'.trParams({'name': updated.name}),
+      );
     } catch (e) {
-      AppUtils.showError('Failed to update meal. Please try again.');
+      AppUtils.showResultDialog(
+        success: false,
+        title: 'save_failed'.tr,
+        message: 'failed_update_meal'.tr,
+      );
     } finally {
       isLoading.value = false;
     }
@@ -113,9 +138,9 @@ class MealController extends GetxController {
 
   Future<void> deleteMeal(Meal meal) async {
     final confirmed = await AppUtils.showConfirmDialog(
-      title: 'Delete Meal',
-      message: 'Are you sure you want to delete "${meal.name}"?',
-      confirmText: 'Delete',
+      title: 'meal_delete_title'.tr,
+      message: 'delete_confirm_message'.trParams({'name': meal.name}),
+      confirmText: 'delete'.tr,
       icon: Icons.delete_outline_rounded,
     );
     if (!confirmed) return;
@@ -125,9 +150,12 @@ class MealController extends GetxController {
       await StorageService.to.deleteMeal(meal.id);
       meals.removeWhere((m) => m.id == meal.id);
       _refreshCounts();
-      AppUtils.showSuccess('${meal.name} deleted', title: 'Deleted');
+      AppUtils.showSuccess(
+        'item_deleted'.trParams({'name': meal.name}),
+        title: 'deleted'.tr,
+      );
     } catch (e) {
-      AppUtils.showError('Failed to delete meal.');
+      AppUtils.showError('failed_delete_meal'.tr);
     } finally {
       isLoading.value = false;
     }
@@ -142,13 +170,13 @@ class MealController extends GetxController {
       _refreshCounts();
       if (updated.isActive) {
         await ReminderScheduler.scheduleMeal(updated);
-        AppUtils.showInfo('${updated.name} reminders enabled');
+        AppUtils.showInfo('item_reminders_enabled'.trParams({'name': updated.name}));
       } else {
         await ReminderScheduler.cancelMeal(updated);
-        AppUtils.showInfo('${updated.name} reminders paused');
+        AppUtils.showInfo('item_reminders_paused'.trParams({'name': updated.name}));
       }
     } catch (e) {
-      AppUtils.showError('Failed to update meal status.');
+      AppUtils.showError('failed_update_meal_status'.tr);
     }
   }
 
@@ -162,6 +190,7 @@ class MealController extends GetxController {
     nameController.text = meal.name;
     selectedTime.value = meal.time;
     selectedNotifType.value = meal.notificationType;
+    selectedAlarmSound.value = meal.alarmSound;
     isActive.value = meal.isActive;
   }
 
@@ -170,11 +199,19 @@ class MealController extends GetxController {
 
   bool _validateForm() {
     if (nameController.text.trim().isEmpty) {
-      AppUtils.showError('Please enter meal name');
+      AppUtils.showResultDialog(
+        success: false,
+        title: 'save_failed'.tr,
+        message: 'meal_name_required'.tr,
+      );
       return false;
     }
     if (nameController.text.trim().length < 2) {
-      AppUtils.showError('Meal name must be at least 2 characters');
+      AppUtils.showResultDialog(
+        success: false,
+        title: 'save_failed'.tr,
+        message: 'meal_name_too_short'.tr,
+      );
       return false;
     }
     return true;
@@ -184,6 +221,7 @@ class MealController extends GetxController {
     nameController.clear();
     selectedTime.value = const TimeOfDay(hour: 8, minute: 0);
     selectedNotifType.value = AppConstants.notifTypeNotification;
+    selectedAlarmSound.value = null;
     isActive.value = true;
     editingMeal = null;
   }

@@ -3,6 +3,7 @@ import 'package:flutter_slidable/flutter_slidable.dart';
 import 'package:get/get.dart';
 import 'package:medi_assist/core/constants/app_colors.dart';
 import 'package:medi_assist/core/utils/app_utils.dart';
+import 'package:medi_assist/core/utils/time_utils.dart';
 import 'package:medi_assist/models/meal_model.dart';
 import '../../../routes/app_pages.dart';
 import '../controllers/meal_controller.dart';
@@ -69,9 +70,9 @@ class MealListView extends StatelessWidget {
       title: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Text(
-            'Meal Reminder',
-            style: TextStyle(
+          Text(
+            'notif_meal_title'.tr,
+            style: const TextStyle(
               fontSize: 18,
               fontWeight: FontWeight.w700,
               letterSpacing: -0.3,
@@ -115,7 +116,7 @@ class MealListView extends StatelessWidget {
       child: TextField(
         onChanged: controller.setSearchQuery,
         decoration: InputDecoration(
-          hintText: 'Search meals...',
+          hintText: 'meal_search'.tr,
           prefixIcon: const Icon(
             Icons.search_rounded,
             color: AppColors.mealColor,
@@ -195,8 +196,8 @@ class MealListView extends StatelessWidget {
             const SizedBox(height: 24),
             Text(
               controller.searchQuery.value.isNotEmpty
-                  ? 'No meals found'
-                  : 'No meal reminders yet',
+                  ? 'meal_not_found'.tr
+                  : 'meal_empty_title'.tr,
               style: const TextStyle(
                 fontSize: 20,
                 fontWeight: FontWeight.w700,
@@ -206,8 +207,8 @@ class MealListView extends StatelessWidget {
             const SizedBox(height: 10),
             Text(
               controller.searchQuery.value.isNotEmpty
-                  ? 'Try a different search term'
-                  : 'Add your breakfast, lunch, dinner\nreminders to stay on schedule',
+                  ? 'try_different_search'.tr
+                  : 'meal_empty_detail'.tr,
               style: TextStyle(
                 fontSize: 14,
                 color: Colors.grey.shade500,
@@ -223,7 +224,7 @@ class MealListView extends StatelessWidget {
                   Get.toNamed(Routes.addEditMeal);
                 },
                 icon: const Icon(Icons.add_rounded),
-                label: const Text('Add Meal'),
+                label: Text('meal_add'.tr),
                 style: ElevatedButton.styleFrom(
                   backgroundColor: AppColors.mealColor,
                   padding: const EdgeInsets.symmetric(
@@ -253,9 +254,9 @@ class MealListView extends StatelessWidget {
       foregroundColor: Colors.white,
       elevation: 4,
       icon: const Icon(Icons.add_rounded),
-      label: const Text(
-        'Add Meal',
-        style: TextStyle(fontWeight: FontWeight.w600),
+      label: Text(
+        'meal_add'.tr,
+        style: const TextStyle(fontWeight: FontWeight.w600),
       ),
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
     );
@@ -342,7 +343,7 @@ class _MealListItemState extends State<_MealListItem>
                   backgroundColor: AppColors.primary,
                   foregroundColor: Colors.white,
                   icon: Icons.edit_rounded,
-                  label: 'Edit',
+                  label: 'edit'.tr,
                   borderRadius: const BorderRadius.only(
                     topLeft: Radius.circular(14),
                     bottomLeft: Radius.circular(14),
@@ -353,7 +354,7 @@ class _MealListItemState extends State<_MealListItem>
                   backgroundColor: AppColors.danger,
                   foregroundColor: Colors.white,
                   icon: Icons.delete_rounded,
-                  label: 'Delete',
+                  label: 'delete'.tr,
                   borderRadius: const BorderRadius.only(
                     topRight: Radius.circular(14),
                     bottomRight: Radius.circular(14),
@@ -487,7 +488,7 @@ class _MealListItemState extends State<_MealListItem>
                             ),
                             const SizedBox(width: 4),
                             Text(
-                              meal.formattedTime,
+                              TimeUtils.formatTimeOfDay(meal.time),
                               style: const TextStyle(
                                 fontSize: 12,
                                 fontWeight: FontWeight.w600,
@@ -576,7 +577,7 @@ class _MealListItemState extends State<_MealListItem>
                 ),
                 const SizedBox(height: 10),
                 Text(
-                  '← swipe',
+                  'swipe_hint'.tr,
                   style: TextStyle(
                     fontSize: 10,
                     color: Colors.grey.shade400,
@@ -600,10 +601,10 @@ class _MealListItemState extends State<_MealListItem>
   }
 
   String _getMealPeriodLabel(int hour) {
-    if (hour >= 5 && hour < 11) return 'Breakfast';
-    if (hour >= 11 && hour < 15) return 'Lunch';
-    if (hour >= 15 && hour < 18) return 'Snack';
-    if (hour >= 18 && hour < 22) return 'Dinner';
-    return 'Meal';
+    if (hour >= 5 && hour < 11) return 'preset_breakfast'.tr;
+    if (hour >= 11 && hour < 15) return 'preset_lunch'.tr;
+    if (hour >= 15 && hour < 18) return 'preset_snack'.tr;
+    if (hour >= 18 && hour < 22) return 'preset_dinner'.tr;
+    return 'meal_title'.tr;
   }
 }

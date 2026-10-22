@@ -1,52 +1,64 @@
-<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+<manifest xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools">
 
     <!-- ==================== PERMISSIONS ==================== -->
+
+    <!-- The `alarm` plugin's manifest declares READ_EXTERNAL_STORAGE for
+         user-supplied alarm audio. This app never reads one at ring time: a
+         ringtone or audio file the user picks is copied into the app's own
+         documents directory straight away (see AlarmSoundService), and the
+         picker itself grants a one-off URI. So strip the permission during
+         merge rather than ship a sensitive one that would need a Play
+         declaration — and keep it that way: if a future change plays a sound
+         from shared storage directly, it will break on a reboot re-arm long
+         before anyone notices the missing permission. -->
+    <uses-permission android:name="android.permission.READ_EXTERNAL_STORAGE"
+        tools:node="remove"/>
 
     <!-- Notifications (Android 13+) -->
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS"/>
 
-    <!-- Alarms -->
+    <!-- Exact alarms. SCHEDULE_EXACT_ALARM is user-grantable on Android 12/13;
+         USE_EXACT_ALARM is auto-granted on Android 14+ for alarm-style apps and
+         requires a Play Console declaration (see docs/play-store-checklist.md). -->
     <uses-permission android:name="android.permission.SCHEDULE_EXACT_ALARM"/>
     <uses-permission android:name="android.permission.USE_EXACT_ALARM"/>
     <uses-permission android:name="android.permission.VIBRATE"/>
-    <uses-permission android:name="android.permission.SET_ALARM"/>
 
-    <!-- Boot — required for 24/7 operation after device restart -->
+    <!-- Reschedule alarms and notifications after a device restart -->
     <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED"/>
 
-    <!-- Foreground Service -->
-    <uses-permission android:name="android.permission.FOREGROUND_SERVICE"/>
-    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_MEDIA_PLAYBACK"/>
-    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_DATA_SYNC"/>
-
-    <!-- Wake Lock — keeps CPU awake so alarms fire on time -->
+    <!-- Keeps the CPU awake long enough for a firing alarm to be handled -->
     <uses-permission android:name="android.permission.WAKE_LOCK"/>
 
-    <!-- Battery optimization — must be disabled for reliable 24/7 reminders -->
+    <!-- Lets the user exempt the app from Doze so alarms are not deferred -->
     <uses-permission android:name="android.permission.REQUEST_IGNORE_BATTERY_OPTIMIZATIONS"/>
 
-    <!-- Show alarm over lock screen -->
-    <uses-permission android:name="android.permission.SYSTEM_ALERT_WINDOW"/>
+    <!-- Rings the alarm screen over the lock screen -->
     <uses-permission android:name="android.permission.USE_FULL_SCREEN_INTENT"/>
 
-    <!-- Direct Boot — allows service to start before device is unlocked -->
-    <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED"/>
+    <!-- One-off coordinate for the prayer-time calculation. Foreground only:
+         there is no background location access and no tracking — the user taps
+         "Use my location", the app takes a single fix and stores the resulting
+         coordinate. Coarse alone is enough to name a city and calculate to the
+         minute; fine is declared so a user who grants precise location gets it,
+         but the feature works without it. -->
+    <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION"/>
+    <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION"/>
 
     <application
         android:label="MediAssist"
         android:name="${applicationName}"
         android:icon="@mipmap/ic_launcher"
-        android:requestLegacyExternalStorage="true"
-        android:usesCleartextTraffic="true"
         android:enableOnBackInvokedCallback="true"
-        android:allowBackup="false">
+        android:allowBackup="false"
+        android:dataExtractionRules="@xml/data_extraction_rules">
 
         <!-- ==================== MAIN ACTIVITY ==================== -->
         <activity
             android:name=".MainActivity"
             android:exported="true"
             android:launchMode="singleTop"
-            android:taskAffinity=""
             android:theme="@style/LaunchTheme"
             android:configChanges="orientation|keyboardHidden|keyboard|screenSize|smallestScreenSize|locale|layoutDirection|fontScale|screenLayout|density|uiMode"
             android:hardwareAccelerated="true"
@@ -62,73 +74,63 @@
             </intent-filter>
         </activity>
 
-        <!-- ==================== CUSTOM BOOT RECEIVER ==================== -->
-        <!-- Our own boot receiver — triggers foreground service on device restart -->
-        <receiver
-            android:name=".BootReceiver"
-            android:exported="true"
-            android:enabled="true"
-            android:directBootAware="true">
-            <intent-filter android:priority="999">
-                <action android:name="android.intent.action.BOOT_COMPLETED"/>
-                <action android:name="android.intent.action.LOCKED_BOOT_COMPLETED"/>
-                <action android:name="android.intent.action.MY_PACKAGE_REPLACED"/>
-                <action android:name="android.intent.action.QUICKBOOT_POWERON"/>
-                <action android:name="com.htc.intent.action.QUICKBOOT_POWERON"/>
-                <!-- Xiaomi / MIUI specific (user's device) -->
-                <action android:name="com.miui.home.launcher.action.RESTART"/>
-            </intent-filter>
-        </receiver>
-
-        <!-- ==================== FLUTTER FOREGROUND TASK ==================== -->
-        <service
-            android:name="com.pravera.flutter_foreground_task.service.ForegroundService"
-            android:foregroundServiceType="dataSync"
-            android:exported="false"
-            android:directBootAware="true"
-            android:stopWithTask="false"/>
-
         <!-- ==================== ALARM PACKAGE ==================== -->
-        <!-- Alarm foreground service — plays alarm sound -->
-        <service
-            android:name="com.gdelataillade.alarm.services.AlarmService"
-            android:exported="false"
-            android:foregroundServiceType="mediaPlayback"
-            android:stopWithTask="false"/>
-
-        <!-- Alarm broadcast receiver — receives scheduled alarm intents -->
-        <receiver
-            android:name="com.gdelataillade.alarm.receivers.AlarmReceiver"
-            android:exported="false"/>
-
-        <!-- ✅ FIXED: Was incorrectly declared as <receiver>, must be <service> -->
-        <!-- Shows notification when app is killed before alarm fires -->
+        <!-- AlarmService and AlarmReceiver are declared by the `alarm` plugin's
+             own manifest and merged in automatically. Only
+             NotificationOnKillService needs declaring here. -->
         <service
             android:name="com.gdelataillade.alarm.services.NotificationOnKillService"
             android:exported="false"
             android:stopWithTask="false"/>
 
-        <!-- ==================== LOCAL NOTIFICATIONS ==================== -->
-        <!-- Handles zonedSchedule / exact alarms -->
+        <!-- The plugin's BootReceiver re-arms each stored alarm at the
+             dateTime it was last saved with. That time is in the past by the
+             time the device reboots, so AlarmApiImpl treats it as "fire now"
+             and every reminder rings at once on startup.
+             DailyAlarmRearmReceiver below handles BOOT_COMPLETED instead and
+             rolls each alarm forward to its next occurrence first. -->
         <receiver
-            android:name="com.dexterous.flutterlocalnotifications.ScheduledNotificationReceiver"
-            android:exported="false"/>
+            android:name="com.gdelataillade.alarm.alarm.BootReceiver"
+            tools:node="remove"/>
 
-        <!-- Reschedules local notifications after reboot -->
+        <!-- ==================== DAILY ALARM RE-ARM ==================== -->
+        <!-- Repeats alarm-type reminders without a Flutter engine: a
+             self-perpetuating AlarmManager sweep plus boot/app-update
+             recovery. See DailyAlarmRearmReceiver.kt. -->
         <receiver
-            android:name="com.dexterous.flutterlocalnotifications.ScheduledNotificationBootReceiver"
-            android:exported="false"
-            android:directBootAware="true">
+            android:name=".DailyAlarmRearmReceiver"
+            android:enabled="true"
+            android:exported="false">
+            <!-- ACTION_REARM_ALARMS needs no filter: the sweep sends it as an
+                 explicit intent to this class. -->
             <intent-filter>
                 <action android:name="android.intent.action.BOOT_COMPLETED"/>
-                <action android:name="android.intent.action.LOCKED_BOOT_COMPLETED"/>
                 <action android:name="android.intent.action.MY_PACKAGE_REPLACED"/>
                 <action android:name="android.intent.action.QUICKBOOT_POWERON"/>
                 <action android:name="com.htc.intent.action.QUICKBOOT_POWERON"/>
             </intent-filter>
         </receiver>
 
-        <!-- Handles notification action buttons (e.g. "Stop Alarm" in notification) -->
+        <!-- ==================== LOCAL NOTIFICATIONS ==================== -->
+        <!-- flutter_local_notifications ships no receivers in its own manifest,
+             so these must stay or scheduled notifications never fire. -->
+        <receiver
+            android:name="com.dexterous.flutterlocalnotifications.ScheduledNotificationReceiver"
+            android:exported="false"/>
+
+        <!-- Reschedules pending notifications after reboot -->
+        <receiver
+            android:name="com.dexterous.flutterlocalnotifications.ScheduledNotificationBootReceiver"
+            android:exported="false">
+            <intent-filter>
+                <action android:name="android.intent.action.BOOT_COMPLETED"/>
+                <action android:name="android.intent.action.MY_PACKAGE_REPLACED"/>
+                <action android:name="android.intent.action.QUICKBOOT_POWERON"/>
+                <action android:name="com.htc.intent.action.QUICKBOOT_POWERON"/>
+            </intent-filter>
+        </receiver>
+
+        <!-- Handles notification action buttons -->
         <receiver
             android:name="com.dexterous.flutterlocalnotifications.ActionBroadcastReceiver"
             android:exported="false"/>
@@ -138,17 +140,13 @@
             android:value="2"/>
     </application>
 
-    <!-- Required for opening system settings (battery optimization, alarms) -->
+    <!-- Required to open the system settings screens we deep-link into -->
     <queries>
         <intent>
             <action android:name="android.settings.REQUEST_SCHEDULE_EXACT_ALARM"/>
         </intent>
         <intent>
             <action android:name="android.settings.IGNORE_BATTERY_OPTIMIZATION_SETTINGS"/>
-        </intent>
-        <intent>
-            <action android:name="android.intent.action.PROCESS_TEXT"/>
-            <data android:mimeType="text/plain"/>
         </intent>
     </queries>
 

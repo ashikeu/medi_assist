@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
+import 'package:medi_assist/core/localization/medical_labels.dart';
 import 'package:medi_assist/core/constants/app_colors.dart';
 import 'package:medi_assist/core/constants/app_constants.dart';
 import 'package:medi_assist/core/utils/time_utils.dart';
@@ -16,10 +17,10 @@ class AddEditMedicalRecordView extends StatelessWidget {
     final isEditing = controller.editingRecord != null;
     final isDark = Theme.of(context).brightness == Brightness.dark;
 
-    final label = AppConstants.medicalRecordLabels[type] ?? type;
+    final label = MedicalLabels.type(type);
     final icon =
         AppConstants.medicalRecordIcons[type] ?? Icons.monitor_heart_rounded;
-    final unit = AppConstants.medicalRecordUnits[type] ?? '';
+    final unit = MedicalLabels.unit(type);
     final categories = controller.getCategoriesForType(type);
 
     return Scaffold(
@@ -39,7 +40,7 @@ class AddEditMedicalRecordView extends StatelessWidget {
 
               // ── Category Dropdown (if applicable) ──
               if (categories.isNotEmpty) ...[
-                _buildSectionLabel('Category', Icons.category_rounded),
+                _buildSectionLabel('category'.tr, Icons.category_rounded),
                 const SizedBox(height: 10),
                 _buildCategoryDropdown(
                     controller, categories, isDark),
@@ -48,7 +49,7 @@ class AddEditMedicalRecordView extends StatelessWidget {
 
               // ── Result Input ──
               _buildSectionLabel(
-                  'Result Value', Icons.numbers_rounded),
+                  'medical_result_value'.tr, Icons.numbers_rounded),
               const SizedBox(height: 4),
               Text(
                 _getResultHint(type),
@@ -61,13 +62,13 @@ class AddEditMedicalRecordView extends StatelessWidget {
 
               // ── Date & Time ──
               _buildSectionLabel(
-                  'Date & Time', Icons.calendar_today_rounded),
+                  'date_and_time'.tr, Icons.calendar_today_rounded),
               const SizedBox(height: 10),
               _buildDateTimeCard(controller, context, isDark),
               const SizedBox(height: 24),
 
               // ── Notes ──
-              _buildSectionLabel('Notes (Optional)', Icons.notes_rounded),
+              _buildSectionLabel('notes_optional'.tr, Icons.notes_rounded),
               const SizedBox(height: 10),
               _buildNotesField(controller, isDark),
               const SizedBox(height: 32),
@@ -106,7 +107,9 @@ class AddEditMedicalRecordView extends StatelessWidget {
         ),
       ),
       title: Text(
-        isEditing ? 'Edit $label' : 'Add $label',
+        isEditing
+            ? 'medical_edit_for'.trParams({'label': label})
+            : 'medical_add_for'.trParams({'label': label}),
         style: const TextStyle(
           fontSize: 18,
           fontWeight: FontWeight.w700,
@@ -142,7 +145,9 @@ class AddEditMedicalRecordView extends StatelessWidget {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  isEditing ? 'Update $label' : 'Log $label',
+                  isEditing
+                      ? 'medical_update_for'.trParams({'label': label})
+                      : 'medical_log_for'.trParams({'label': label}),
                   style: const TextStyle(
                     color: Colors.white,
                     fontSize: 16,
@@ -151,7 +156,7 @@ class AddEditMedicalRecordView extends StatelessWidget {
                 ),
                 const SizedBox(height: 3),
                 Text(
-                  'Unit: $unit',
+                  'medical_unit'.trParams({'unit': unit}),
                   style: TextStyle(
                     color: Colors.white.withOpacity(0.8),
                     fontSize: 12,
@@ -221,9 +226,11 @@ class AddEditMedicalRecordView extends StatelessWidget {
             items: categories
                 .map(
                   (cat) => DropdownMenuItem<String>(
+                    // The English string stays the value — it is what gets
+                    // saved — while the label follows the current language.
                     value: cat,
                     child: Text(
-                      cat,
+                      MedicalLabels.category(cat),
                       style: const TextStyle(
                         fontSize: 14,
                         fontWeight: FontWeight.w500,
@@ -335,9 +342,9 @@ class AddEditMedicalRecordView extends StatelessWidget {
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          const Text(
-                            'Date',
-                            style: TextStyle(
+                          Text(
+                            'date'.tr,
+                            style: const TextStyle(
                               fontSize: 12,
                               color: Colors.grey,
                             ),
@@ -396,9 +403,9 @@ class AddEditMedicalRecordView extends StatelessWidget {
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          const Text(
-                            'Time',
-                            style: TextStyle(
+                          Text(
+                            'time'.tr,
+                            style: const TextStyle(
                               fontSize: 12,
                               color: Colors.grey,
                             ),
@@ -504,7 +511,7 @@ class AddEditMedicalRecordView extends StatelessWidget {
       textCapitalization: TextCapitalization.sentences,
       style: const TextStyle(fontSize: 14),
       decoration: InputDecoration(
-        hintText: 'Add any notes or observations...',
+        hintText: 'medical_notes_hint'.tr,
         alignLabelWithHint: true,
         prefixIcon: const Padding(
           padding: EdgeInsets.only(bottom: 40),
@@ -578,7 +585,9 @@ class AddEditMedicalRecordView extends StatelessWidget {
                     ),
                     const SizedBox(width: 10),
                     Text(
-                      isEditing ? 'Save Changes' : 'Save $label Entry',
+                      isEditing
+                          ? 'save_changes'.tr
+                          : 'medical_save_entry_for'.trParams({'label': label}),
                       style: const TextStyle(
                         fontSize: 16,
                         fontWeight: FontWeight.w700,
@@ -594,24 +603,7 @@ class AddEditMedicalRecordView extends StatelessWidget {
   }
 
   // ─── Helpers ─────────────────────────────────────────────────────────────────
-  String _getResultHint(String type) {
-    switch (type) {
-      case AppConstants.recordBloodPressure:
-        return 'Enter systolic/diastolic e.g. 120/80';
-      case AppConstants.recordHeartRate:
-        return 'Enter beats per minute e.g. 72';
-      case AppConstants.recordOxygenLevel:
-        return 'Enter oxygen saturation e.g. 98';
-      case AppConstants.recordDiabetesLevel:
-        return 'Enter blood glucose level e.g. 95';
-      case AppConstants.recordTemperature:
-        return 'Enter body temperature e.g. 36.6';
-      case AppConstants.recordWeight:
-        return 'Enter body weight e.g. 70.5';
-      default:
-        return 'Enter measurement value';
-    }
-  }
+  String _getResultHint(String type) => MedicalLabels.hint(type);
 
   String _getResultPlaceholder(String type) {
     switch (type) {
